@@ -21,8 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include "dolphin_156x129_565.h"
-//#include "dale.h"
+#include "dolphin_156x129_565.h"
 //#include "nature_images_3.h"
 //#include "nature_images_4.h"
 #include "nature_images_5.h"
@@ -144,11 +143,12 @@ int main(void)
   HAL_GPIO_WritePin(LCD_ON_OFF_GPIO_Port, LCD_ON_OFF_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
 
-  //Will need to change to rgb565, WxH and position in LTDC layer config for this to work
-  //HAL_LTDC_SetAddress(&hltdc, (uint32_t) dolphin_156x129_565, 0);
 
   //Display image
   HAL_LTDC_SetAddress(&hltdc, (uint32_t) nature_image_5, 0);
+
+  //Will need to change to rgb565, WxH and position in LTDC layer config for this to work
+  HAL_LTDC_SetAddress(&hltdc, (uint32_t) dolphin_156x129_565, 1);
 
   /* USER CODE END 2 */
 
@@ -158,11 +158,15 @@ int main(void)
   {
 	  HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);
 	  HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 0);
+	  HAL_Delay(500);
+	  HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 1);
 	  HAL_Delay(1000);
 
 	  HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_RESET);
 	  HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 0);
-	  HAL_Delay(1000);
+	  HAL_Delay(500);
+	  HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 1);
+	  HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -503,6 +507,7 @@ static void MX_LTDC_Init(void)
   /* USER CODE END LTDC_Init 0 */
 
   LTDC_LayerCfgTypeDef pLayerCfg = {0};
+  LTDC_LayerCfgTypeDef pLayerCfg1 = {0};
 
   /* USER CODE BEGIN LTDC_Init 1 */
 
@@ -527,10 +532,16 @@ static void MX_LTDC_Init(void)
   {
     Error_Handler();
   }
-  pLayerCfg.WindowX0 = 0;
-  pLayerCfg.WindowX1 = 300;
-  pLayerCfg.WindowY0 = 0;
-  pLayerCfg.WindowY1 = 158;
+  /*
+  pLayerCfg.WindowX0 = 200;
+  pLayerCfg.WindowX1 = 200+300;
+  pLayerCfg.WindowY0 = 200;
+  pLayerCfg.WindowY1 = 200+158;
+  */
+	pLayerCfg.WindowX0 = 0;
+	pLayerCfg.WindowX1 = 300;
+	pLayerCfg.WindowY0 = 0;
+	pLayerCfg.WindowY1 = 158;
   pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB888;
   pLayerCfg.Alpha = 255;
   pLayerCfg.Alpha0 = 0;
@@ -539,20 +550,45 @@ static void MX_LTDC_Init(void)
   pLayerCfg.FBStartAdress = 0;
   pLayerCfg.ImageWidth = 300;
   pLayerCfg.ImageHeight = 158;
-  pLayerCfg.Backcolor.Blue = 255;
+  pLayerCfg.Backcolor.Blue = 0;
   pLayerCfg.Backcolor.Green = 0;
   pLayerCfg.Backcolor.Red = 0;
   if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg, 0) != HAL_OK)
   {
     Error_Handler();
   }
+  //
+  //
+  pLayerCfg1.WindowX0 = 0;
+  pLayerCfg1.WindowX1 = 156;
+  pLayerCfg1.WindowY0 = 0;
+  pLayerCfg1.WindowY1 = 129;
+  pLayerCfg1.PixelFormat = LTDC_PIXEL_FORMAT_RGB565;
+  pLayerCfg1.Alpha = 100;
+  pLayerCfg1.Alpha0 = 0;
+  pLayerCfg1.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
+  pLayerCfg1.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
+  pLayerCfg1.FBStartAdress = 0;
+  pLayerCfg1.ImageWidth = 156;
+  pLayerCfg1.ImageHeight = 129;
+  pLayerCfg1.Backcolor.Blue = 255;
+  pLayerCfg1.Backcolor.Green = 0;
+  pLayerCfg1.Backcolor.Red = 0;
+  if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg1, 1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  //
   /* USER CODE BEGIN LTDC_Init 2 */
   RIMC_MasterConfig_t RIMC_master = {0};
   RIMC_master.MasterCID = RIF_CID_1;
   RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
+
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1 , &RIMC_master);
+  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC2 , &RIMC_master);
 
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL2 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   /* USER CODE END LTDC_Init 2 */
 
 }
@@ -635,7 +671,6 @@ static void MX_MDF1_Init(void)
   /*RIMC configuration*/
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_ETH1, &RIMC_master);
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
-  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_SDMMC2, &RIMC_master);
 
   /* RIF-Aware IPs Config */
 
