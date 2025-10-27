@@ -527,7 +527,7 @@ static void MX_LTDC_Init(void)
   hltdc.Init.TotalHeigh = 499;
   hltdc.Init.Backcolor.Blue = 0;
   hltdc.Init.Backcolor.Green = 0;
-  hltdc.Init.Backcolor.Red = 0;
+  hltdc.Init.Backcolor.Red = 255;
   if (HAL_LTDC_Init(&hltdc) != HAL_OK)
   {
     Error_Handler();
@@ -543,7 +543,7 @@ static void MX_LTDC_Init(void)
 	pLayerCfg.WindowY0 = 0;
 	pLayerCfg.WindowY1 = 158;
   pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB888;
-  pLayerCfg.Alpha = 255;
+  pLayerCfg.Alpha = 100;
   pLayerCfg.Alpha0 = 0;
   pLayerCfg.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
   pLayerCfg.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
@@ -551,7 +551,7 @@ static void MX_LTDC_Init(void)
   pLayerCfg.ImageWidth = 300;
   pLayerCfg.ImageHeight = 158;
   pLayerCfg.Backcolor.Blue = 0;
-  pLayerCfg.Backcolor.Green = 0;
+  pLayerCfg.Backcolor.Green = 255;
   pLayerCfg.Backcolor.Red = 0;
   if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg, 0) != HAL_OK)
   {
