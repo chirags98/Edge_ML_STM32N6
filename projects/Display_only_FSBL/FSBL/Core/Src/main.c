@@ -21,10 +21,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "dolphin_156x129_565.h"
+//#include "dolphin_156x129_565.h"
 //#include "nature_images_3.h"
 //#include "nature_images_4.h"
-#include "nature_images_5.h"
+//#include "nature_images_5.h"
+#include "lvgl.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +49,8 @@ ADC_HandleTypeDef hadc1;
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
+LTDC_HandleTypeDef hltdc;
+
 MDF_HandleTypeDef MdfHandle0;
 MDF_FilterConfigTypeDef MdfFilterConfig0;
 
@@ -62,6 +65,14 @@ XSPI_HandleTypeDef hxspi1;
 XSPI_HandleTypeDef hxspi2;
 
 /* USER CODE BEGIN PV */
+
+//Frame buffers
+/*Static or global buffer(s). The second buffer is optional*/
+//TODO: Adjust color format and choose buffer size. DISPLAY_WIDTH * 10 is one suggestion.
+#define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) /*will be 2 for RGB565 */
+#define BUFF_SIZE (480 * 10 * BYTE_PER_PIXEL)
+static uint8_t buf_1[BUFF_SIZE];
+static uint8_t buf_2[BUFF_SIZE];
 
 /* USER CODE END PV */
 
@@ -80,9 +91,12 @@ static void MX_USB1_OTG_HS_USB_Init(void);
 static void MX_USB2_OTG_HS_HCD_Init(void);
 static void MX_XSPI1_Init(void);
 static void MX_XSPI2_Init(void);
+static void MX_LTDC_Init(void);
 static void SystemIsolation_Config(void);
 /* USER CODE BEGIN PFP */
-
+void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map);
+static void spin_anim_cb(void * obj, int32_t v);
+void create_spinner(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -131,18 +145,41 @@ int main(void)
   MX_USB2_OTG_HS_HCD_Init();
   MX_XSPI1_Init();
   MX_XSPI2_Init();
+  MX_LTDC_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
 
   HAL_GPIO_WritePin(LCD_ON_OFF_GPIO_Port, LCD_ON_OFF_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
 
+  lv_init();   // 1️⃣ Initialize LVGL core
+
+  lv_tick_set_cb(HAL_GetTick);  // 2️⃣ Hook LVGL tick to HAL
+
+  //lv_port_disp_init();   // 3️⃣ LTDC display driver
+  //lv_port_indev_init();  // 4️⃣ Touch input driver
+
+  lv_display_t * disp = lv_display_create(800, 480); /*Basic initialization with horizontal and vertical resolution in pixels*/
+  lv_display_set_flush_cb(disp, my_flush_cb); /*Set a flush callback to draw to the display*/
+  lv_display_set_buffers(disp, buf_1, buf_2, sizeof(buf_1), LV_DISPLAY_RENDER_MODE_PARTIAL); /*Set an initialized buffer*/
+
+  // Change the active screen's background color
+  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x003a57), LV_PART_MAIN);
+  lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
+
+  /*Create a spinner*/
+//  lv_obj_t * spinner = lv_spinner_create(lv_screen_active(), 1000, 60);
+//  lv_obj_set_size(spinner, 64, 64);
+//  lv_obj_align(spinner, LV_ALIGN_BOTTOM_MID, 0, 0);
+
+  create_spinner();
+
 
   //Display image
-  HAL_LTDC_SetAddress(&hltdc, (uint32_t) nature_image_5, 0);
+  //HAL_LTDC_SetAddress(&hltdc, (uint32_t) nature_image_5, 0);
 
   //Will need to change to rgb565, WxH and position in LTDC layer config for this to work
-  HAL_LTDC_SetAddress(&hltdc, (uint32_t) dolphin_156x129_565, 1);
+  //HAL_LTDC_SetAddress(&hltdc, (uint32_t) dolphin_156x129_565, 1);
 
   /* USER CODE END 2 */
 
@@ -150,6 +187,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+	  /*
 	  HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);
 	  HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 0);
 	  HAL_Delay(500);
@@ -161,9 +200,13 @@ int main(void)
 	  HAL_Delay(500);
 	  HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 1);
 	  HAL_Delay(500);
+	  */
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	  lv_timer_handler();
+	  HAL_Delay(2);
   }
   /* USER CODE END 3 */
 }
@@ -485,6 +528,88 @@ static void MX_ICACHE_Init(void)
   /* USER CODE BEGIN ICACHE_Init 2 */
 
   /* USER CODE END ICACHE_Init 2 */
+
+}
+
+/**
+  * @brief LTDC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_LTDC_Init(void)
+{
+
+  /* USER CODE BEGIN LTDC_Init 0 */
+
+  /* USER CODE END LTDC_Init 0 */
+
+  LTDC_LayerCfgTypeDef pLayerCfg = {0};
+  LTDC_LayerCfgTypeDef pLayerCfg1 = {0};
+
+  /* USER CODE BEGIN LTDC_Init 1 */
+
+  /* USER CODE END LTDC_Init 1 */
+  hltdc.Instance = LTDC;
+  hltdc.Init.HSPolarity = LTDC_HSPOLARITY_AL;
+  hltdc.Init.VSPolarity = LTDC_VSPOLARITY_AL;
+  hltdc.Init.DEPolarity = LTDC_DEPOLARITY_AH;
+  hltdc.Init.PCPolarity = LTDC_PCPOLARITY_IPC;
+  hltdc.Init.HorizontalSync = 3;
+  hltdc.Init.VerticalSync = 3;
+  hltdc.Init.AccumulatedHBP = 11;
+  hltdc.Init.AccumulatedVBP = 11;
+  hltdc.Init.AccumulatedActiveW = 811;
+  hltdc.Init.AccumulatedActiveH = 491;
+  hltdc.Init.TotalWidth = 819;
+  hltdc.Init.TotalHeigh = 499;
+  hltdc.Init.Backcolor.Blue = 0;
+  hltdc.Init.Backcolor.Green = 0;
+  hltdc.Init.Backcolor.Red = 0;
+  if (HAL_LTDC_Init(&hltdc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  pLayerCfg.WindowX0 = 0;
+  pLayerCfg.WindowX1 = 300;
+  pLayerCfg.WindowY0 = 0;
+  pLayerCfg.WindowY1 = 158;
+  pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB888;
+  pLayerCfg.Alpha = 255;
+  pLayerCfg.Alpha0 = 0;
+  pLayerCfg.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
+  pLayerCfg.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
+  pLayerCfg.FBStartAdress = 0;
+  pLayerCfg.ImageWidth = 300;
+  pLayerCfg.ImageHeight = 158;
+  pLayerCfg.Backcolor.Blue = 255;
+  pLayerCfg.Backcolor.Green = 0;
+  pLayerCfg.Backcolor.Red = 0;
+  if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  pLayerCfg1.WindowX0 = 0;
+  pLayerCfg1.WindowX1 = 156;
+  pLayerCfg1.WindowY0 = 0;
+  pLayerCfg1.WindowY1 = 129;
+  pLayerCfg1.PixelFormat = LTDC_PIXEL_FORMAT_RGB565;
+  pLayerCfg1.Alpha = 255;
+  pLayerCfg1.Alpha0 = 0;
+  pLayerCfg1.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
+  pLayerCfg1.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
+  pLayerCfg1.FBStartAdress = 0;
+  pLayerCfg1.ImageWidth = 156;
+  pLayerCfg1.ImageHeight = 129;
+  pLayerCfg1.Backcolor.Blue = 255;
+  pLayerCfg1.Backcolor.Green = 0;
+  pLayerCfg1.Backcolor.Red = 0;
+  if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg1, 1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN LTDC_Init 2 */
+
+  /* USER CODE END LTDC_Init 2 */
 
 }
 
@@ -960,6 +1085,81 @@ static void MX_XSPI2_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+static void spin_anim_cb(void * obj, int32_t v)
+{
+    lv_obj_set_style_transform_rotation(obj, v, 0);
+}
+
+void create_spinner(void)
+{
+    lv_obj_t * spinner = lv_arc_create(lv_screen_active());
+
+    lv_obj_set_size(spinner, 60, 60);
+    lv_arc_set_range(spinner, 0, 100);
+    lv_arc_set_value(spinner, 75);
+    lv_obj_remove_style(spinner, NULL, LV_PART_KNOB);
+    lv_obj_center(spinner);
+
+    static lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, spinner);
+    lv_anim_set_exec_cb(&a, spin_anim_cb);
+    lv_anim_set_time(&a, 1000);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_values(&a, 0, 3600); /* 0.1 degree units */
+    lv_anim_start(&a);
+}
+
+void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
+{
+    /*The most simple case (but also the slowest) to put all pixels to the screen one-by-one
+     *`put_px` is just an example, it needs to be implemented by you.*/
+    uint16_t * buf16 = (uint16_t *)px_map; /*Let's say it's a 16 bit (RGB565) display*/
+    int32_t x, y;
+    for(y = area->y1; y <= area->y2; y++) {
+        for(x = area->x1; x <= area->x2; x++) {
+            //put_px(x, y, *buf16);
+            buf16++;
+        }
+    }
+
+    /* IMPORTANT!!!
+     * Inform LVGL that you are ready with the flushing and buf is not used anymore*/
+    lv_display_flush_ready(display);
+}
+
+/*
+void my_flush_cb(lv_display_t * disp, const lv_area_t * area, lv_color_t * color_p)
+{
+  //Set the drawing region
+  set_draw_window(area->x1, area->y1, area->x2, area->y2);
+
+  int height = area->y2 - area->y1 + 1;
+  int width = area->x2 - area->x1 + 1;
+
+  //We will do the SPI write manually here for speed
+  HAL_GPIO_WritePin(DC_PORT, DC_PIN, GPIO_PIN_SET);
+  //CS low to begin data
+  HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_RESET);
+
+  //Write colour to each pixel
+  for (int i = 0; i < width * height; i++) {
+    uint16_t color_full = (color_p->red << 11) | (color_p->green << 5) | (color_p->blue);
+    parallel_write(color_full);
+
+    color_p++;
+  }
+
+  //Return CS to high
+  HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET);
+
+  // IMPORTANT!!!
+  // Inform the graphics library that you are ready with the flushing//
+  lv_display_flush_ready(disp);
+}
+*/
+
 
 /* USER CODE END 4 */
 

@@ -295,6 +295,191 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 }
 
 /**
+  * @brief LTDC MSP Initialization
+  * This function configures the hardware resources used in this example
+  * @param hltdc: LTDC handle pointer
+  * @retval None
+  */
+void HAL_LTDC_MspInit(LTDC_HandleTypeDef* hltdc)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+  if(hltdc->Instance==LTDC)
+  {
+    /* USER CODE BEGIN LTDC_MspInit 0 */
+
+    /* USER CODE END LTDC_MspInit 0 */
+
+  /** Initializes the peripherals clock
+  */
+    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
+    PeriphClkInitStruct.LtdcClockSelection = RCC_LTDCCLKSOURCE_PCLK5;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    /* Peripheral clock enable */
+    __HAL_RCC_LTDC_CLK_ENABLE();
+
+    __HAL_RCC_GPIOH_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    /**LTDC GPIO Configuration
+    PH3     ------> LTDC_B4
+    PH6     ------> LTDC_B5
+    PD15     ------> LTDC_R2
+    PB14     ------> LTDC_HSYNC
+    PB13     ------> LTDC_CLK
+    PB2     ------> LTDC_B2
+    PB15     ------> LTDC_G4
+    PE11     ------> LTDC_VSYNC
+    PD8     ------> LTDC_R7
+    PH4     ------> LTDC_R4
+    PD9     ------> LTDC_R1
+    PG6     ------> LTDC_B3
+    PA1     ------> LTDC_G2
+    PB11     ------> LTDC_G6
+    PA15(JTDI)     ------> LTDC_R5
+    PG15     ------> LTDC_B0
+    PG1     ------> LTDC_G1
+    PB12     ------> LTDC_G5
+    PA7     ------> LTDC_B1
+    PG0     ------> LTDC_R0
+    PA2     ------> LTDC_B7
+    PG12     ------> LTDC_G0
+    PB4(NJTRST)     ------> LTDC_R3
+    PG8     ------> LTDC_G7
+    PA8     ------> LTDC_B6
+    PG13     ------> LTDC_DE
+    PA0     ------> LTDC_G3
+    PG11     ------> LTDC_R6
+    */
+    GPIO_InitStruct.Pin = LCD_B4_Pin|LCD_B5_Pin|LCD_R4_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF14_LCD;
+    HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = LCD_R2_Pin|LCD_R7_Pin|LCD_R1_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF14_LCD;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = LCD_HSYNC_Pin|GPIO_PIN_13|LCD_B2_Pin|LCD_G4_Pin
+                          |LCD_G6_Pin|LCD_G5_Pin|LCD_R3_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF14_LCD;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = LCD_VSYNC_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF14_LCD;
+    HAL_GPIO_Init(LCD_VSYNC_GPIO_Port, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = LCD_B3_Pin|LCD_B0_Pin|LCD_G1_Pin|LCD_R0_Pin
+                          |LCD_G0_Pin|LCd_G7_Pin|LCD_DE_Pin|LCD_R6_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF14_LCD;
+    HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_1|LCD_R5_Pin|LCD_B1_Pin|LCD_B7_Pin
+                          |LCD_B6_Pin|LCD_G3_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF14_LCD;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    /* USER CODE BEGIN LTDC_MspInit 1 */
+
+    /* USER CODE END LTDC_MspInit 1 */
+
+  }
+
+}
+
+/**
+  * @brief LTDC MSP De-Initialization
+  * This function freeze the hardware resources used in this example
+  * @param hltdc: LTDC handle pointer
+  * @retval None
+  */
+void HAL_LTDC_MspDeInit(LTDC_HandleTypeDef* hltdc)
+{
+  if(hltdc->Instance==LTDC)
+  {
+    /* USER CODE BEGIN LTDC_MspDeInit 0 */
+
+    /* USER CODE END LTDC_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_LTDC_CLK_DISABLE();
+
+    /**LTDC GPIO Configuration
+    PH3     ------> LTDC_B4
+    PH6     ------> LTDC_B5
+    PD15     ------> LTDC_R2
+    PB14     ------> LTDC_HSYNC
+    PB13     ------> LTDC_CLK
+    PB2     ------> LTDC_B2
+    PB15     ------> LTDC_G4
+    PE11     ------> LTDC_VSYNC
+    PD8     ------> LTDC_R7
+    PH4     ------> LTDC_R4
+    PD9     ------> LTDC_R1
+    PG6     ------> LTDC_B3
+    PA1     ------> LTDC_G2
+    PB11     ------> LTDC_G6
+    PA15(JTDI)     ------> LTDC_R5
+    PG15     ------> LTDC_B0
+    PG1     ------> LTDC_G1
+    PB12     ------> LTDC_G5
+    PA7     ------> LTDC_B1
+    PG0     ------> LTDC_R0
+    PA2     ------> LTDC_B7
+    PG12     ------> LTDC_G0
+    PB4(NJTRST)     ------> LTDC_R3
+    PG8     ------> LTDC_G7
+    PA8     ------> LTDC_B6
+    PG13     ------> LTDC_DE
+    PA0     ------> LTDC_G3
+    PG11     ------> LTDC_R6
+    */
+    HAL_GPIO_DeInit(GPIOH, LCD_B4_Pin|LCD_B5_Pin|LCD_R4_Pin);
+
+    HAL_GPIO_DeInit(GPIOD, LCD_R2_Pin|LCD_R7_Pin|LCD_R1_Pin);
+
+    HAL_GPIO_DeInit(GPIOB, LCD_HSYNC_Pin|GPIO_PIN_13|LCD_B2_Pin|LCD_G4_Pin
+                          |LCD_G6_Pin|LCD_G5_Pin|LCD_R3_Pin);
+
+    HAL_GPIO_DeInit(LCD_VSYNC_GPIO_Port, LCD_VSYNC_Pin);
+
+    HAL_GPIO_DeInit(GPIOG, LCD_B3_Pin|LCD_B0_Pin|LCD_G1_Pin|LCD_R0_Pin
+                          |LCD_G0_Pin|LCd_G7_Pin|LCD_DE_Pin|LCD_R6_Pin);
+
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_1|LCD_R5_Pin|LCD_B1_Pin|LCD_B7_Pin
+                          |LCD_B6_Pin|LCD_G3_Pin);
+
+    /* USER CODE BEGIN LTDC_MspDeInit 1 */
+
+    /* USER CODE END LTDC_MspDeInit 1 */
+  }
+
+}
+
+/**
   * @brief MDF MSP Initialization
   * This function configures the hardware resources used in this example
   * @param hmdf: MDF handle pointer
