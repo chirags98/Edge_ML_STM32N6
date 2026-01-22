@@ -75,7 +75,6 @@ static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
-static void MX_ICACHE_Init(void);
 static void MX_MDF1_Init(void);
 static void MX_SAI1_Init(void);
 static void MX_UCPD1_Init(void);
@@ -125,16 +124,10 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET); off
   MX_ADC1_Init();
   MX_I2C1_Init();
-  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);	off
   MX_I2C2_Init();
-  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);	off
-  //MX_ICACHE_Init();
-  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);	on
   MX_MDF1_Init();
-  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET); on
   MX_SAI1_Init();
   MX_UCPD1_Init();
   MX_USART1_UART_Init();
@@ -469,38 +462,6 @@ static void MX_I2C2_Init(void)
 }
 
 /**
-  * @brief ICACHE Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ICACHE_Init(void)
-{
-
-  /* USER CODE BEGIN ICACHE_Init 0 */
-
-  /* USER CODE END ICACHE_Init 0 */
-
-  /* USER CODE BEGIN ICACHE_Init 1 */
-
-  /* USER CODE END ICACHE_Init 1 */
-
-  /** Enable instruction cache in 1-way (direct mapped cache)
-  */
-  if (HAL_ICACHE_ConfigAssociativityMode(ICACHE_1WAY) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_ICACHE_Enable() != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ICACHE_Init 2 */
-
-  /* USER CODE END ICACHE_Init 2 */
-
-}
-
-/**
   * @brief LTDC Initialization Function
   * @param None
   * @retval None
@@ -533,44 +494,36 @@ static void MX_LTDC_Init(void)
   hltdc.Init.TotalHeigh = 499;
   hltdc.Init.Backcolor.Blue = 0;
   hltdc.Init.Backcolor.Green = 0;
-  hltdc.Init.Backcolor.Red = 255;
+  hltdc.Init.Backcolor.Red = 0;
   if (HAL_LTDC_Init(&hltdc) != HAL_OK)
   {
     Error_Handler();
   }
-  /*
-  pLayerCfg.WindowX0 = 200;
-  pLayerCfg.WindowX1 = 200+300;
-  pLayerCfg.WindowY0 = 200;
-  pLayerCfg.WindowY1 = 200+158;
-  */
-	pLayerCfg.WindowX0 = 0;
-	pLayerCfg.WindowX1 = 300;
-	pLayerCfg.WindowY0 = 0;
-	pLayerCfg.WindowY1 = 158;
+  pLayerCfg.WindowX0 = 0;
+  pLayerCfg.WindowX1 = 300;
+  pLayerCfg.WindowY0 = 0;
+  pLayerCfg.WindowY1 = 158;
   pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB888;
-  pLayerCfg.Alpha = 100;
+  pLayerCfg.Alpha = 255;
   pLayerCfg.Alpha0 = 0;
   pLayerCfg.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
   pLayerCfg.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
   pLayerCfg.FBStartAdress = 0;
   pLayerCfg.ImageWidth = 300;
   pLayerCfg.ImageHeight = 158;
-  pLayerCfg.Backcolor.Blue = 0;
-  pLayerCfg.Backcolor.Green = 255;
+  pLayerCfg.Backcolor.Blue = 255;
+  pLayerCfg.Backcolor.Green = 0;
   pLayerCfg.Backcolor.Red = 0;
   if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg, 0) != HAL_OK)
   {
     Error_Handler();
   }
-  //
-  //
   pLayerCfg1.WindowX0 = 0;
   pLayerCfg1.WindowX1 = 156;
   pLayerCfg1.WindowY0 = 0;
   pLayerCfg1.WindowY1 = 129;
   pLayerCfg1.PixelFormat = LTDC_PIXEL_FORMAT_RGB565;
-  pLayerCfg1.Alpha = 100;
+  pLayerCfg1.Alpha = 255;
   pLayerCfg1.Alpha0 = 0;
   pLayerCfg1.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
   pLayerCfg1.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
@@ -584,7 +537,6 @@ static void MX_LTDC_Init(void)
   {
     Error_Handler();
   }
-  //
   /* USER CODE BEGIN LTDC_Init 2 */
   RIMC_MasterConfig_t RIMC_master = {0};
   RIMC_master.MasterCID = RIF_CID_1;
