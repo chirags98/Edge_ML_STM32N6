@@ -22,9 +22,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "dolphin_156x129_565.h"
+#include "nature_images_5.h"
+
 //#include "nature_images_3.h"
 //#include "nature_images_4.h"
-#include "nature_images_5.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -124,11 +125,16 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET); off
   MX_ADC1_Init();
   MX_I2C1_Init();
+  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);	off
   MX_I2C2_Init();
-  MX_ICACHE_Init();
+  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);	off
+  //MX_ICACHE_Init();
+  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);	on
   MX_MDF1_Init();
+  //HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET); on
   MX_SAI1_Init();
   MX_UCPD1_Init();
   MX_USART1_UART_Init();
