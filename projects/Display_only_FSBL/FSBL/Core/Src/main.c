@@ -159,7 +159,7 @@ int main(void)
 	  HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 0);
 	  HAL_Delay(500);
 	  HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 1);
-	  HAL_Delay(1000);
+	  HAL_Delay(500);
 
 	  HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_RESET);
 	  HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 0);
