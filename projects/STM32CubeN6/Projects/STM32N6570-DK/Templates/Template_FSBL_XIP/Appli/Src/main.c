@@ -21,6 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "dolphin_156x129_565.h"
+#include "nature_images_5.h"
 
 /* USER CODE END Includes */
 
@@ -102,6 +104,14 @@ int main(void)
   MX_LTDC_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
+  HAL_GPIO_WritePin(LCD_ON_OFF_GPIO_Port, LCD_ON_OFF_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
+
+  //Display image
+  HAL_LTDC_SetAddress(&hltdc, (uint32_t) nature_image_5, 0);
+
+  //Will need to change to rgb565, WxH and position in LTDC layer config for this to work
+  HAL_LTDC_SetAddress(&hltdc, (uint32_t) dolphin_156x129_565, 1);
 
   /* USER CODE END 2 */
 
@@ -110,8 +120,22 @@ int main(void)
   while (1)
   {
     /* Toggle LED1 every 250ms */
-    BSP_LED_Toggle(LED_GREEN);
-    HAL_Delay(25);
+    //BSP_LED_Toggle(LED_GREEN);
+    //HAL_Delay(25);
+
+	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);
+	BSP_LED_Toggle(LED_GREEN);
+	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 0);
+	HAL_Delay(500);
+	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 1);
+	HAL_Delay(500);
+
+	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_RESET);
+	BSP_LED_Toggle(LED_GREEN);
+	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 0);
+	HAL_Delay(500);
+	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 1);
+	HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -196,7 +220,16 @@ static void MX_LTDC_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN LTDC_Init 2 */
+  /* USER CODE BEGIN LTDC_Init 2 */
+  RIMC_MasterConfig_t RIMC_master = {0};
+  RIMC_master.MasterCID = RIF_CID_1;
+  RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
 
+  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
+  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC2, &RIMC_master);
+
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL2, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   /* USER CODE END LTDC_Init 2 */
 
 }
@@ -219,8 +252,11 @@ static void MX_LTDC_Init(void)
   /*RIMC configuration*/
   RIMC_MasterConfig_t RIMC_master = {0};
   RIMC_master.MasterCID = RIF_CID_1;
-  RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_NPRIV;
+  RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
+
+  /*RISUP configuration*/
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
 
   /* RIF-Aware IPs Config */
 
