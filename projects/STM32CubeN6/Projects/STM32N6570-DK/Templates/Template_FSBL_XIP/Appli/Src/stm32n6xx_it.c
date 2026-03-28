@@ -22,6 +22,7 @@
 #include "stm32n6xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "lvgl.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -198,6 +199,12 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
+
+  HAL_SYSTICK_IRQHandler();
+  lv_tick_inc(1);
+  #ifdef USE_RTOS_SYSTICK
+  	  osSystickHandler();
+  #endif
 
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
