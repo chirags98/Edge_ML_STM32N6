@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <launchConfiguration type="com.st.stm32cube.ide.mcu.debug.launch.launchConfigurationType">
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.access_port_id" value="1"/>
-    <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.cubeprog_external_loaders" value="[]"/>
+    <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.cubeprog_external_loaders" value="[{&quot;fLoaderPath&quot;:&quot;${workspace_loc:/Template_Isolation_XIP_ExtMemLoader/CustomN6.stldr}&quot;,&quot;fInitialize&quot;:false,&quot;fIsEnabled&quot;:true}]"/>
     <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.launch.debug_auth__pwd_enable" value="false"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.debug_auth_certif_path" value=""/>
     <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.launch.debug_auth_check_enable" value="false"/>
@@ -15,7 +15,7 @@
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.ip_address_local" value="localhost"/>
     <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.launch.limit_swo_clock.enabled" value="false"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.limit_swo_clock.value" value=""/>
-    <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.loadList" value="{&quot;fItems&quot;:[{&quot;fIsFromMainTab&quot;:true,&quot;fPath&quot;:&quot;Debug/Template_Isolation_XIP_FSBL.elf&quot;,&quot;fProjectName&quot;:&quot;Template_Isolation_XIP_FSBL&quot;,&quot;fPerformBuild&quot;:true,&quot;fDownload&quot;:true,&quot;fLoadSymbols&quot;:true}]}"/>
+    <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.loadList" value="{&quot;fItems&quot;:[{&quot;fIsFromMainTab&quot;:false,&quot;fPath&quot;:&quot;C:\\Users\\chira\\Documents\\STM_Projects\\Edge_ML_STM32N6\\projects\\STM32CubeN6\\Projects\\STM32N6570-DK\\Templates\\Template_Isolation_XIP\\STM32CubeIDE\\AppliNonSecure\\Debug\\Template_Isolation_XIP_AppliNonSecure-Trusted.bin&quot;,&quot;fStartDownloadAddress&quot;:1880621056,&quot;fPerformBuild&quot;:false,&quot;fDownload&quot;:true,&quot;fLoadSymbols&quot;:false},{&quot;fIsFromMainTab&quot;:false,&quot;fPath&quot;:&quot;Debug/Template_Isolation_XIP_AppliNonSecure.elf&quot;,&quot;fProjectName&quot;:&quot;Template_Isolation_XIP_AppliNonSecure&quot;,&quot;fUseActiveBuildConfig&quot;:true,&quot;fPerformBuild&quot;:false,&quot;fDownload&quot;:false,&quot;fLoadSymbols&quot;:true},{&quot;fIsFromMainTab&quot;:false,&quot;fPath&quot;:&quot;C:\\Users\\chira\\Documents\\STM_Projects\\Edge_ML_STM32N6\\projects\\STM32CubeN6\\Projects\\STM32N6570-DK\\Templates\\Template_Isolation_XIP\\STM32CubeIDE\\AppliSecure\\Debug\\Template_Isolation_XIP_AppliSecure-Trusted.bin&quot;,&quot;fStartDownloadAddress&quot;:1880096768,&quot;fPerformBuild&quot;:false,&quot;fDownload&quot;:true,&quot;fLoadSymbols&quot;:false},{&quot;fIsFromMainTab&quot;:false,&quot;fPath&quot;:&quot;Debug/Template_Isolation_XIP_AppliSecure.elf&quot;,&quot;fProjectName&quot;:&quot;Template_Isolation_XIP_AppliSecure&quot;,&quot;fUseActiveBuildConfig&quot;:true,&quot;fPerformBuild&quot;:false,&quot;fDownload&quot;:false,&quot;fLoadSymbols&quot;:true},{&quot;fIsFromMainTab&quot;:true,&quot;fPath&quot;:&quot;Debug/Template_Isolation_XIP_FSBL.elf&quot;,&quot;fProjectName&quot;:&quot;Template_Isolation_XIP_FSBL&quot;,&quot;fPerformBuild&quot;:true,&quot;fDownload&quot;:true,&quot;fLoadSymbols&quot;:true}]}"/>
     <intAttribute key="com.st.stm32cube.ide.mcu.debug.launch.mode" value="0"/>
     <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.launch.multi_drop_enabled" value="false"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.override_start_address_mode" value="default"/>
@@ -39,7 +39,7 @@
     <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.enable_shared_stlink" value="false"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.frequency" value="0"/>
     <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.halt_all_on_reset" value="false"/>
-    <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.log_file" value="C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\reference_repos\STM32CubeN6\Projects\STM32N6570-DK\Templates\Template_Isolation_XIP\STM32CubeIDE\FSBL\Debug\st-link_gdbserver_log.txt"/>
+    <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.log_file" value="C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Projects\STM32N6570-DK\Templates\Template_Isolation_XIP\STM32CubeIDE\FSBL\Debug\st-link_gdbserver_log.txt"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.low_power_debug" value="enable"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.max_halt_delay" value="2"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.reset_strategy" value="connect_under_reset"/>
@@ -65,7 +65,7 @@
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.setPcRegister" value="false"/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.setResume" value="true"/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.setStopAt" value="true"/>
-    <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.stopAt" value="main"/>
+    <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.stopAt" value="BOOT_Application"/>
     <stringAttribute key="org.eclipse.cdt.dsf.gdb.DEBUG_NAME" value="arm-none-eabi-gdb"/>
     <booleanAttribute key="org.eclipse.cdt.dsf.gdb.NON_STOP" value="false"/>
     <booleanAttribute key="org.eclipse.cdt.dsf.gdb.UPDATE_THREADLIST_ON_SUSPEND" value="false"/>
@@ -73,7 +73,7 @@
     <stringAttribute key="org.eclipse.cdt.launch.COREFILE_PATH" value=""/>
     <stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_START_MODE" value="remote"/>
     <booleanAttribute key="org.eclipse.cdt.launch.DEBUGGER_STOP_AT_MAIN" value="true"/>
-    <stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_STOP_AT_MAIN_SYMBOL" value="main"/>
+    <stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_STOP_AT_MAIN_SYMBOL" value="BOOT_Application"/>
     <stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="Debug/Template_Isolation_XIP_FSBL.elf"/>
     <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="Template_Isolation_XIP_FSBL"/>
     <booleanAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_AUTO_ATTR" value="true"/>
@@ -85,5 +85,6 @@
     <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
         <listEntry value="4"/>
     </listAttribute>
+    <stringAttribute key="org.eclipse.dsf.launch.MEMORY_BLOCKS" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&lt;memoryBlockExpressionList context=&quot;reserved-for-future-use&quot;/&gt;"/>
     <stringAttribute key="process_factory_id" value="com.st.stm32cube.ide.mcu.debug.launch.HardwareDebugProcessFactory"/>
 </launchConfiguration>
