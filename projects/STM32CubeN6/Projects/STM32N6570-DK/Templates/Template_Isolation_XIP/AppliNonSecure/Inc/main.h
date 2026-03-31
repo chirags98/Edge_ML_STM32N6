@@ -73,6 +73,12 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LCD_BL_CTRL_Pin GPIO_PIN_6
+#define LCD_BL_CTRL_GPIO_Port GPIOQ
+#define LCD_ON_OFF_Pin GPIO_PIN_3
+#define LCD_ON_OFF_GPIO_Port GPIOQ
+#define LCD_NRST_Pin GPIO_PIN_1
+#define LCD_NRST_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
 

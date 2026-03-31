@@ -17,7 +17,6 @@
   ******************************************************************************
   */
 /* USER CODE END Header */
-
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 /* USER CODE BEGIN Includes */
@@ -70,6 +69,8 @@ void HAL_MspInit(void)
   /* System interrupt init*/
 
   HAL_PWREx_EnableVddIO3();
+
+  HAL_PWREx_EnableVddIO4();
 
   /* USER CODE BEGIN MspInit 1 */
 

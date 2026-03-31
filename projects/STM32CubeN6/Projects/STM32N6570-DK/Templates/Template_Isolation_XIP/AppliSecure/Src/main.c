@@ -98,6 +98,16 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 
+  	RIMC_MasterConfig_t RIMC_master = {0};
+    RIMC_master.MasterCID = RIF_CID_2;
+    RIMC_master.SecPriv = RIF_ATTRIBUTE_NSEC | RIF_ATTRIBUTE_NPRIV;
+
+  	HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
+  	HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC2, &RIMC_master);
+
+  	HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1, RIF_ATTRIBUTE_NSEC | RIF_ATTRIBUTE_NPRIV);
+  	HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL2, RIF_ATTRIBUTE_NSEC | RIF_ATTRIBUTE_NPRIV);
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -208,6 +218,53 @@ static void NonSecure_Init(void)
   risaf_base_config.EndAddress = 0x63fff;
   HAL_RIF_RISAF_ConfigBaseRegion(RISAF7, RISAF_REGION_1, &risaf_base_config);
 
+  /* RIF-Aware IPs Config */
+
+  /* set up GPIO configuration */
+  /* GPIOA Non Secure Ports Clock Enable */
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  HAL_GPIO_ConfigPinAttributes(GPIOA,GPIO_PIN_0,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOA,GPIO_PIN_1,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOA,GPIO_PIN_2,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOA,GPIO_PIN_7,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOA,GPIO_PIN_8,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  /* GPIOB Non Secure Ports Clock Enable */
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  HAL_GPIO_ConfigPinAttributes(GPIOB,GPIO_PIN_2,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOB,GPIO_PIN_11,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOB,GPIO_PIN_12,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOB,GPIO_PIN_13,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOB,GPIO_PIN_14,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOB,GPIO_PIN_15,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  /* GPIOD Non Secure Ports Clock Enable */
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  HAL_GPIO_ConfigPinAttributes(GPIOD,GPIO_PIN_8,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOD,GPIO_PIN_9,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOD,GPIO_PIN_15,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  /* GPIOE Non Secure Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  HAL_GPIO_ConfigPinAttributes(GPIOE,GPIO_PIN_1,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOE,GPIO_PIN_11,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  /* GPIOG Non Secure Ports Clock Enable */
+  __HAL_RCC_GPIOG_CLK_ENABLE();
+  HAL_GPIO_ConfigPinAttributes(GPIOG,GPIO_PIN_0,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOG,GPIO_PIN_1,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOG,GPIO_PIN_6,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOG,GPIO_PIN_8,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOG,GPIO_PIN_11,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOG,GPIO_PIN_12,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOG,GPIO_PIN_13,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOG,GPIO_PIN_15,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  /* GPIOH Non Secure Ports Clock Enable */
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  HAL_GPIO_ConfigPinAttributes(GPIOH,GPIO_PIN_3,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOH,GPIO_PIN_4,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOH,GPIO_PIN_6,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  /* GPIOQ Non Secure Ports Clock Enable */
+  __HAL_RCC_GPIOQ_CLK_ENABLE();
+  HAL_GPIO_ConfigPinAttributes(GPIOQ,GPIO_PIN_3,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOQ,GPIO_PIN_6,GPIO_PIN_NSEC|GPIO_PIN_NPRIV);
+
   /* USER CODE BEGIN RIF_Init 1 */
   __HAL_RCC_RIFSC_CLK_ENABLE();
   /* Set GPIOO as configurable by non-secure */
@@ -218,6 +275,8 @@ static void NonSecure_Init(void)
 
   /* Configure PO1 as non-secure to be used for non-secure led toggling */
   HAL_GPIO_ConfigPinAttributes(GPIOO, GPIO_PIN_1, GPIO_PIN_NSEC);
+
+  __HAL_RCC_GPIOO_CLK_ENABLE();
   /* USER CODE END RIF_Init 1 */
   /* USER CODE BEGIN RIF_Init 2 */
 
