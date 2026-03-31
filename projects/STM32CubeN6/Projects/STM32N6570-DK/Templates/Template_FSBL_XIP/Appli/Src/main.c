@@ -126,16 +126,16 @@ int main(void)
 	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);
 	BSP_LED_Toggle(LED_GREEN);
 	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 0);
-	HAL_Delay(500);
+	HAL_Delay(100);
 	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 1);
-	HAL_Delay(500);
+	HAL_Delay(100);
 
 	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_RESET);
 	BSP_LED_Toggle(LED_GREEN);
 	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 0);
-	HAL_Delay(500);
+	HAL_Delay(100);
 	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 1);
-	HAL_Delay(500);
+	HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
