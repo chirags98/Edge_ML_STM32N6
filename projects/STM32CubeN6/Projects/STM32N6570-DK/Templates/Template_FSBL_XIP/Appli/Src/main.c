@@ -61,6 +61,12 @@ LTDC_HandleTypeDef hltdc;
 static uint8_t buf_1[BUFF_SIZE];
 static uint8_t buf_2[BUFF_SIZE];
 
+#if defined ( __ICCARM__ )
+#pragma data_alignment=32
+#elif defined ( __CC_ARM ) || defined ( __GNUC__ )
+__attribute__((aligned(32)))
+#endif
+
 // 2. LTDC Full Framebuffer (what the hardware actually displays)
 // NOTE: For 800x480x3, this requires ~1.15MB of RAM.
 static uint8_t ltdc_frame_buffer[800 * 480 * BYTE_PER_PIXEL];
@@ -75,8 +81,6 @@ static void SystemIsolation_Config(void);
 void Error_Handler(void);
 
 void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map);
-static void spin_anim_cb(void * obj, int32_t v);
-void create_spinner(void);
 
 /* USER CODE END PFP */
 
@@ -141,12 +145,9 @@ int main(void)
   lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x673a57), LV_PART_MAIN);
   lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
 
-  /*Create a spinner*/
-  //  lv_obj_t * spinner = lv_spinner_create(lv_screen_active(), 1000, 60);
-  //  lv_obj_set_size(spinner, 64, 64);
-  //  lv_obj_align(spinner, LV_ALIGN_BOTTOM_MID, 0, 0);
-
-  create_spinner();
+  lv_obj_t * label = lv_label_create(lv_screen_active());
+  lv_label_set_text(label, "Hello STM32N6! LVGL is working.");
+  lv_obj_center(label);
 
   //Display image
   //HAL_LTDC_SetAddress(&hltdc, (uint32_t) nature_image_5, 0);
@@ -397,31 +398,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-static void spin_anim_cb(void * obj, int32_t v)
-{
-    lv_obj_set_style_transform_rotation(obj, v, 0);
-}
-
-void create_spinner(void)
-{
-    lv_obj_t * spinner = lv_arc_create(lv_screen_active());
-
-    lv_obj_set_size(spinner, 60, 60);
-    lv_arc_set_range(spinner, 0, 100);
-    lv_arc_set_value(spinner, 75);
-    lv_obj_remove_style(spinner, NULL, LV_PART_KNOB);
-    lv_obj_center(spinner);
-
-    static lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, spinner);
-    lv_anim_set_exec_cb(&a, spin_anim_cb);
-    lv_anim_set_time(&a, 1000);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_values(&a, 0, 3600); /* 0.1 degree units */
-    lv_anim_start(&a);
-}
-
+/*
 void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
 {
     uint32_t flush_width = lv_area_get_width(area);
@@ -441,6 +418,33 @@ void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_ma
 
     // Force the CPU to write the cache out to RAM so the LTDC can see it
     SCB_CleanDCache_by_Addr((uint32_t*)start_addr, size);
+
+    // Inform LVGL that you are ready
+    lv_display_flush_ready(display);
+}
+*/
+
+void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
+{
+    uint32_t flush_width = lv_area_get_width(area);
+    int32_t height = area->y2 - area->y1 + 1;
+
+    for(int32_t y = area->y1; y <= area->y2; y++) {
+        uint32_t dest_offset = ((y * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL;
+        uint32_t src_offset = ((y - area->y1) * flush_width) * BYTE_PER_PIXEL;
+        memcpy(&ltdc_frame_buffer[dest_offset], &px_map[src_offset], flush_width * BYTE_PER_PIXEL);
+    }
+
+    /* Calculate start address and size */
+    uint32_t start_addr = (uint32_t)&ltdc_frame_buffer[((area->y1 * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL];
+    uint32_t size = flush_width * height * BYTE_PER_PIXEL;
+
+    /* CRITICAL FIX: 32-byte align the address and size for the cache controller */
+    uint32_t aligned_addr = start_addr & ~0x1FUL;
+    uint32_t aligned_size = ((size + (start_addr - aligned_addr) + 0x1F) & ~0x1FUL);
+
+    /* Clean the D-Cache safely */
+    SCB_CleanDCache_by_Addr((uint32_t*)aligned_addr, aligned_size);
 
     /* Inform LVGL that you are ready */
     lv_display_flush_ready(display);
