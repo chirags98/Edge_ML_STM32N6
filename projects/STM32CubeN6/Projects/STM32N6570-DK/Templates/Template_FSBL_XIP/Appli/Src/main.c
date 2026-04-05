@@ -61,12 +61,6 @@ LTDC_HandleTypeDef hltdc;
 static uint8_t buf_1[BUFF_SIZE];
 static uint8_t buf_2[BUFF_SIZE];
 
-#if defined ( __ICCARM__ )
-#pragma data_alignment=32
-#elif defined ( __CC_ARM ) || defined ( __GNUC__ )
-__attribute__((aligned(32)))
-#endif
-
 // 2. LTDC Full Framebuffer (what the hardware actually displays)
 // NOTE: For 800x480x3, this requires ~1.15MB of RAM.
 static uint8_t ltdc_frame_buffer[800 * 480 * BYTE_PER_PIXEL];
