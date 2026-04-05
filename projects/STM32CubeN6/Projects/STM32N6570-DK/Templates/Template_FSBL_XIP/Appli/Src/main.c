@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h> // Ensure you include this at the top for memcpy
 //#include "dolphin_156x129_565.h"
 //#include "nature_images_5.h"
 
@@ -52,12 +53,17 @@ LTDC_HandleTypeDef hltdc;
 //Frame buffers
 /*Static or global buffer(s). The second buffer is optional*/
 //TODO: Adjust color format and choose buffer size. DISPLAY_WIDTH * 10 is one suggestion.
-#define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) /*will be 2 for RGB565 */
-#define BUFF_SIZE (480 * 10 * BYTE_PER_PIXEL)
+#define DISPLAY_WIDTH  800
+#define DISPLAY_HEIGHT 480
+
+#define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565)) /*will be 2 for RGB565 */
+#define BUFF_SIZE (DISPLAY_WIDTH * 10 * BYTE_PER_PIXEL)
 static uint8_t buf_1[BUFF_SIZE];
 static uint8_t buf_2[BUFF_SIZE];
 
-
+// 2. LTDC Full Framebuffer (what the hardware actually displays)
+// NOTE: For 800x480x3, this requires ~1.15MB of RAM.
+static uint8_t ltdc_frame_buffer[800 * 480 * BYTE_PER_PIXEL];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -132,7 +138,7 @@ int main(void)
   lv_display_set_buffers(disp, buf_1, buf_2, sizeof(buf_1), LV_DISPLAY_RENDER_MODE_PARTIAL); /*Set an initialized buffer*/
 
   // Change the active screen's background color
-  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x003a57), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x673a57), LV_PART_MAIN);
   lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
 
   /*Create a spinner*/
@@ -195,7 +201,7 @@ static void MX_LTDC_Init(void)
   /* USER CODE END LTDC_Init 0 */
 
   LTDC_LayerCfgTypeDef pLayerCfg = {0};
-  LTDC_LayerCfgTypeDef pLayerCfg1 = {0};
+  //LTDC_LayerCfgTypeDef pLayerCfg1 = {0};
 
   /* USER CODE BEGIN LTDC_Init 1 */
 
@@ -221,24 +227,26 @@ static void MX_LTDC_Init(void)
     Error_Handler();
   }
   pLayerCfg.WindowX0 = 0;
-  pLayerCfg.WindowX1 = 300;
+  pLayerCfg.WindowX1 = 800;
   pLayerCfg.WindowY0 = 0;
-  pLayerCfg.WindowY1 = 158;
-  pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB888;
+  pLayerCfg.WindowY1 = 480;
+  pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB565;
   pLayerCfg.Alpha = 255;
   pLayerCfg.Alpha0 = 0;
   pLayerCfg.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
   pLayerCfg.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
-  pLayerCfg.FBStartAdress = 0;
-  pLayerCfg.ImageWidth = 300;
-  pLayerCfg.ImageHeight = 158;
-  pLayerCfg.Backcolor.Blue = 255;
-  pLayerCfg.Backcolor.Green = 0;
+  //pLayerCfg.FBStartAdress = 0;
+  pLayerCfg.FBStartAdress = (uint32_t)ltdc_frame_buffer; // <-- Point this to your actual buffer!
+  pLayerCfg.ImageWidth = 800;
+  pLayerCfg.ImageHeight = 480;
+  pLayerCfg.Backcolor.Blue = 0;
+  pLayerCfg.Backcolor.Green = 255;
   pLayerCfg.Backcolor.Red = 0;
   if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg, 0) != HAL_OK)
   {
     Error_Handler();
   }
+  /*
   pLayerCfg1.WindowX0 = 0;
   pLayerCfg1.WindowX1 = 156;
   pLayerCfg1.WindowY0 = 0;
@@ -258,8 +266,9 @@ static void MX_LTDC_Init(void)
   {
     Error_Handler();
   }
+  */
   /* USER CODE BEGIN LTDC_Init 2 */
-  /* USER CODE BEGIN LTDC_Init 2 */
+  /*
   RIMC_MasterConfig_t RIMC_master = {0};
   RIMC_master.MasterCID = RIF_CID_1;
   RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
@@ -269,6 +278,7 @@ static void MX_LTDC_Init(void)
 
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL2, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  */
   /* USER CODE END LTDC_Init 2 */
 
 }
@@ -414,21 +424,52 @@ void create_spinner(void)
 
 void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
 {
-    /*The most simple case (but also the slowest) to put all pixels to the screen one-by-one
-     *`put_px` is just an example, it needs to be implemented by you.*/
-    uint16_t * buf16 = (uint16_t *)px_map; /*Let's say it's a 16 bit (RGB565) display*/
-    int32_t x, y;
-    for(y = area->y1; y <= area->y2; y++) {
-        for(x = area->x1; x <= area->x2; x++) {
-            //put_px(x, y, *buf16);
-            buf16++;
-        }
+    uint32_t flush_width = lv_area_get_width(area);
+    int32_t height = area->y2 - area->y1 + 1;
+
+    for(int32_t y = area->y1; y <= area->y2; y++) {
+        uint32_t dest_offset = ((y * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL;
+        uint32_t src_offset = ((y - area->y1) * flush_width) * BYTE_PER_PIXEL;
+        memcpy(&ltdc_frame_buffer[dest_offset], &px_map[src_offset], flush_width * BYTE_PER_PIXEL);
     }
 
-    /* IMPORTANT!!!
-     * Inform LVGL that you are ready with the flushing and buf is not used anymore*/
+    // --- ADD THIS TO FIX D-CACHE ---
+    // Calculate the start address of the updated region
+    uint32_t start_addr = (uint32_t)&ltdc_frame_buffer[((area->y1 * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL];
+    // Calculate the total size in bytes of the updated region
+    uint32_t size = flush_width * height * BYTE_PER_PIXEL;
+
+    // Force the CPU to write the cache out to RAM so the LTDC can see it
+    SCB_CleanDCache_by_Addr((uint32_t*)start_addr, size);
+
+    /* Inform LVGL that you are ready */
     lv_display_flush_ready(display);
 }
+
+/*
+ * x
+void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
+{
+    // Get the width of the area we are flushing
+    uint32_t flush_width = lv_area_get_width(area);
+
+    // Copy row by row from the LVGL partial buffer (px_map) to the LTDC Full Framebuffer
+    for(int32_t y = area->y1; y <= area->y2; y++) {
+        // Calculate the destination address in the LTDC buffer
+        uint32_t dest_offset = ((y * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL;
+
+        // Calculate the source address in the LVGL px_map buffer
+        uint32_t src_offset = ((y - area->y1) * flush_width) * BYTE_PER_PIXEL;
+
+        // Copy the row
+        memcpy(&ltdc_frame_buffer[dest_offset], &px_map[src_offset], flush_width * BYTE_PER_PIXEL);
+    }
+
+    // IMPORTANT!!!
+    // Inform LVGL that you are ready with the flushing and px_map is not used anymore
+    lv_display_flush_ready(display);
+}
+*/
 
 /*
 void my_flush_cb(lv_display_t * disp, const lv_area_t * area, lv_color_t * color_p)
