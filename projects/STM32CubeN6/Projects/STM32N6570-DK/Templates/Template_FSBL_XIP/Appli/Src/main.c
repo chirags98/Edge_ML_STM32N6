@@ -377,33 +377,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-/*
-void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
-{
-    uint32_t flush_width = lv_area_get_width(area);
-    int32_t height = area->y2 - area->y1 + 1;
-
-    for(int32_t y = area->y1; y <= area->y2; y++) {
-        uint32_t dest_offset = ((y * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL;
-        uint32_t src_offset = ((y - area->y1) * flush_width) * BYTE_PER_PIXEL;
-        memcpy(&ltdc_frame_buffer[dest_offset], &px_map[src_offset], flush_width * BYTE_PER_PIXEL);
-    }
-
-    // --- ADD THIS TO FIX D-CACHE ---
-    // Calculate the start address of the updated region
-    uint32_t start_addr = (uint32_t)&ltdc_frame_buffer[((area->y1 * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL];
-    // Calculate the total size in bytes of the updated region
-    uint32_t size = flush_width * height * BYTE_PER_PIXEL;
-
-    // Force the CPU to write the cache out to RAM so the LTDC can see it
-    SCB_CleanDCache_by_Addr((uint32_t*)start_addr, size);
-
-    // Inform LVGL that you are ready
-    lv_display_flush_ready(display);
-}
-*/
-
 void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
 {
     uint32_t flush_width = lv_area_get_width(area);
@@ -430,61 +403,6 @@ void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_ma
     lv_display_flush_ready(display);
 }
 
-/*
- * x
-void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
-{
-    // Get the width of the area we are flushing
-    uint32_t flush_width = lv_area_get_width(area);
-
-    // Copy row by row from the LVGL partial buffer (px_map) to the LTDC Full Framebuffer
-    for(int32_t y = area->y1; y <= area->y2; y++) {
-        // Calculate the destination address in the LTDC buffer
-        uint32_t dest_offset = ((y * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL;
-
-        // Calculate the source address in the LVGL px_map buffer
-        uint32_t src_offset = ((y - area->y1) * flush_width) * BYTE_PER_PIXEL;
-
-        // Copy the row
-        memcpy(&ltdc_frame_buffer[dest_offset], &px_map[src_offset], flush_width * BYTE_PER_PIXEL);
-    }
-
-    // IMPORTANT!!!
-    // Inform LVGL that you are ready with the flushing and px_map is not used anymore
-    lv_display_flush_ready(display);
-}
-*/
-
-/*
-void my_flush_cb(lv_display_t * disp, const lv_area_t * area, lv_color_t * color_p)
-{
-  //Set the drawing region
-  set_draw_window(area->x1, area->y1, area->x2, area->y2);
-
-  int height = area->y2 - area->y1 + 1;
-  int width = area->x2 - area->x1 + 1;
-
-  //We will do the SPI write manually here for speed
-  HAL_GPIO_WritePin(DC_PORT, DC_PIN, GPIO_PIN_SET);
-  //CS low to begin data
-  HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_RESET);
-
-  //Write colour to each pixel
-  for (int i = 0; i < width * height; i++) {
-    uint16_t color_full = (color_p->red << 11) | (color_p->green << 5) | (color_p->blue);
-    parallel_write(color_full);
-
-    color_p++;
-  }
-
-  //Return CS to high
-  HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET);
-
-  // IMPORTANT!!!
-  // Inform the graphics library that you are ready with the flushing//
-  lv_display_flush_ready(disp);
-}
-*/
 /* USER CODE END 4 */
 
  /* MPU Configuration */
