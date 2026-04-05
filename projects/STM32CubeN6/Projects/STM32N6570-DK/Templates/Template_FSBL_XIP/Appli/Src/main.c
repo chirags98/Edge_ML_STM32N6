@@ -56,7 +56,7 @@ LTDC_HandleTypeDef hltdc;
 #define DISPLAY_WIDTH  800
 #define DISPLAY_HEIGHT 480
 
-#define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565)) /*will be 2 for RGB565 */
+#define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) /*will be 2 for RGB565 */
 #define BUFF_SIZE (DISPLAY_WIDTH * 10 * BYTE_PER_PIXEL)
 static uint8_t buf_1[BUFF_SIZE];
 static uint8_t buf_2[BUFF_SIZE];
@@ -233,7 +233,7 @@ static void MX_LTDC_Init(void)
   pLayerCfg.WindowX1 = 800;
   pLayerCfg.WindowY0 = 0;
   pLayerCfg.WindowY1 = 480;
-  pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB565;
+  pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB888;
   pLayerCfg.Alpha = 255;
   pLayerCfg.Alpha0 = 0;
   pLayerCfg.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
