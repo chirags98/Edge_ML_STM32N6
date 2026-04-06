@@ -27,6 +27,8 @@
 
 #include "lvgl.h"
 
+#include "demos/lv_demos.h" // Add this line
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -138,13 +140,32 @@ int main(void)
   lv_display_set_flush_cb(disp, my_flush_cb); /*Set a flush callback to draw to the display*/
   lv_display_set_buffers(disp, buf_1, buf_2, sizeof(buf_1), LV_DISPLAY_RENDER_MODE_PARTIAL); /*Set an initialized buffer*/
 
-  // Change the active screen's background color
+  /*
+  Change the active screen's background color
   lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x673a57), LV_PART_MAIN);
   lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
 
   lv_obj_t * label = lv_label_create(lv_screen_active());
   lv_label_set_text(label, "Hello STM32N6! LVGL is working.");
   lv_obj_center(label);
+  */
+
+  /* Launch the Widgets Demo */
+  //lv_demo_widgets();
+
+  /* 1. Set a dark, modern background color */
+    lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x1a1a2e), LV_PART_MAIN);
+
+    /* 2. Create a smooth, animated spinner */
+    lv_obj_t * spinner = lv_spinner_create(lv_screen_active());
+    lv_obj_set_size(spinner, 150, 150);
+    lv_obj_center(spinner);
+
+    /* 3. Add a clean text label below it */
+    lv_obj_t * label = lv_label_create(lv_screen_active());
+    lv_label_set_text(label, "STM32N6 Rendering...");
+    lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+    lv_obj_align(label, LV_ALIGN_CENTER, 0, 120);
 
   //Display image
   //HAL_LTDC_SetAddress(&hltdc, (uint32_t) nature_image_5, 0);
