@@ -400,19 +400,21 @@ void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_ma
     for(int32_t y = area->y1; y <= area->y2; y++) {
         uint32_t dest_offset = ((y * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL;
         uint32_t src_offset = ((y - area->y1) * flush_width) * BYTE_PER_PIXEL;
+
+        /* 1. Copy the line into the frame buffer */
         memcpy(&ltdc_frame_buffer[dest_offset], &px_map[src_offset], flush_width * BYTE_PER_PIXEL);
+
+        /* 2. Calculate the exact memory address and size for THIS specific line */
+        uint32_t line_start_addr = (uint32_t)&ltdc_frame_buffer[dest_offset];
+        uint32_t line_size = flush_width * BYTE_PER_PIXEL;
+
+        /* 3. 32-byte align the address and size for the cache controller */
+        uint32_t aligned_addr = line_start_addr & ~0x1FUL;
+        uint32_t aligned_size = ((line_size + (line_start_addr - aligned_addr) + 0x1F) & ~0x1FUL);
+
+        /* 4. Clean the D-Cache safely for just this line */
+        SCB_CleanDCache_by_Addr((uint32_t*)aligned_addr, aligned_size);
     }
-
-    /* Calculate start address and size */
-    uint32_t start_addr = (uint32_t)&ltdc_frame_buffer[((area->y1 * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL];
-    uint32_t size = flush_width * height * BYTE_PER_PIXEL;
-
-    /* CRITICAL FIX: 32-byte align the address and size for the cache controller */
-    uint32_t aligned_addr = start_addr & ~0x1FUL;
-    uint32_t aligned_size = ((size + (start_addr - aligned_addr) + 0x1F) & ~0x1FUL);
-
-    /* Clean the D-Cache safely */
-    SCB_CleanDCache_by_Addr((uint32_t*)aligned_addr, aligned_size);
 
     /* Inform LVGL that you are ready */
     lv_display_flush_ready(display);
