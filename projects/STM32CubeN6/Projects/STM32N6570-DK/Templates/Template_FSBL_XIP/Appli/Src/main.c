@@ -22,9 +22,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <string.h> // Ensure you include this at the top for memcpy
-//#include "dolphin_156x129_565.h"
-//#include "nature_images_5.h"
-
 #include "lvgl.h"
 
 #include "demos/lv_demos.h" // Add this line
@@ -142,22 +139,9 @@ int main(void)
 
   lv_tick_set_cb(HAL_GetTick);  // 2️⃣ Hook LVGL tick to HAL
 
-  //lv_port_disp_init();   // 3️⃣ LTDC display driver
-  //lv_port_indev_init();  // 4️⃣ Touch input driver
-
   lv_display_t * disp = lv_display_create(800, 480); /*Basic initialization with horizontal and vertical resolution in pixels*/
   lv_display_set_flush_cb(disp, my_flush_cb); /*Set a flush callback to draw to the display*/
   lv_display_set_buffers(disp, buf_1, buf_2, sizeof(buf_1), LV_DISPLAY_RENDER_MODE_PARTIAL); /*Set an initialized buffer*/
-
-  /*
-  Change the active screen's background color
-  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x673a57), LV_PART_MAIN);
-  lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
-
-  lv_obj_t * label = lv_label_create(lv_screen_active());
-  lv_label_set_text(label, "Hello STM32N6! LVGL is working.");
-  lv_obj_center(label);
-  */
 
   /* Launch the Widgets Demo */
   lv_demo_widgets();
@@ -193,37 +177,12 @@ int main(void)
     lv_obj_align(label, LV_ALIGN_CENTER, 0, 120);
    */
 
-  //Display image
-  //HAL_LTDC_SetAddress(&hltdc, (uint32_t) nature_image_5, 0);
-
-  //Will need to change to rgb565, WxH and position in LTDC layer config for this to work
-  //HAL_LTDC_SetAddress(&hltdc, (uint32_t) dolphin_156x129_565, 1);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /*
-    //BSP_LED_Toggle(LED_GREEN);
-    //HAL_Delay(25);
-
-	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);
-	BSP_LED_Toggle(LED_GREEN);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 0);
-	HAL_Delay(500);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 1);
-	HAL_Delay(500);
-
-	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_RESET);
-	BSP_LED_Toggle(LED_GREEN);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 0);
-	HAL_Delay(500);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 1);
-	HAL_Delay(500);
-	*/
-
 	lv_timer_handler();
 	HAL_Delay(2);
     /* USER CODE END WHILE */
@@ -338,17 +297,7 @@ static void MX_LTDC_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN LTDC_Init 2 */
-  /*
-  RIMC_MasterConfig_t RIMC_master = {0};
-  RIMC_master.MasterCID = RIF_CID_1;
-  RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
 
-  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
-  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC2, &RIMC_master);
-
-  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
-  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL2, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
-  */
   /* USER CODE END LTDC_Init 2 */
 
 }
