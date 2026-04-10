@@ -28,6 +28,7 @@
 #include "lvgl.h"
 
 #include "demos/lv_demos.h" // Add this line
+#include "stm32n6570_discovery_ts.h"
 
 /* USER CODE END Includes */
 
@@ -80,6 +81,7 @@ static void SystemIsolation_Config(void);
 void Error_Handler(void);
 
 void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map);
+static void my_touch_read_cb(lv_indev_t * indev, lv_indev_data_t * data);
 
 /* USER CODE END PFP */
 
@@ -129,6 +131,9 @@ int main(void)
   MX_I2C2_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
+  /* Disable EXTI4: touch is handled by LVGL polling, not interrupt */
+  HAL_NVIC_DisableIRQ(EXTI4_IRQn);
+
   HAL_GPIO_WritePin(LCD_ON_OFF_GPIO_Port, LCD_ON_OFF_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
 
@@ -153,6 +158,24 @@ int main(void)
   lv_label_set_text(label, "Hello STM32N6! LVGL is working.");
   lv_obj_center(label);
   */
+
+  /* Release GT911 reset and wait for it to boot before communicating */
+  HAL_GPIO_WritePin(LCD_NRST_GPIO_Port, LCD_NRST_Pin, GPIO_PIN_SET);
+  HAL_Delay(100);
+
+  /* Initialize touchscreen and register LVGL input device */
+  TS_Init_t ts_init;
+  ts_init.Width       = 800;
+  ts_init.Height      = 480;
+  ts_init.Orientation = TS_SWAP_NONE;
+  ts_init.Accuracy    = 0;
+  if (BSP_TS_Init(0, &ts_init) != BSP_ERROR_NONE)
+  {
+    Error_Handler();
+  }
+  lv_indev_t * indev = lv_indev_create();
+  lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+  lv_indev_set_read_cb(indev, my_touch_read_cb);
 
   /* Launch the Widgets Demo */
   lv_demo_widgets();
@@ -428,7 +451,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOQ, LCD_BL_CTRL_Pin|LCD_ON_OFF_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LCD_NRST_GPIO_Port, LCD_NRST_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LCD_NRST_GPIO_Port, LCD_NRST_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : LCD_BL_CTRL_Pin LCD_ON_OFF_Pin */
   GPIO_InitStruct.Pin = LCD_BL_CTRL_Pin|LCD_ON_OFF_Pin;
@@ -460,6 +483,19 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void my_touch_read_cb(lv_indev_t * indev, lv_indev_data_t * data)
+{
+    TS_State_t ts;
+    BSP_TS_GetState(0, &ts);
+    if (ts.TouchDetected) {
+        data->point.x = (int32_t)ts.TouchX;
+        data->point.y = (int32_t)ts.TouchY;
+        data->state = LV_INDEV_STATE_PRESSED;
+    } else {
+        data->state = LV_INDEV_STATE_RELEASED;
+    }
+}
+
 void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
 {
     uint32_t flush_width = lv_area_get_width(area);

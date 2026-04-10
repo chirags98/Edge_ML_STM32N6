@@ -53,6 +53,7 @@
 									<listOptionValue builtIn="false" value="../../../../../../../Drivers/CMSIS/Include"/>
 									<listOptionValue builtIn="false" value="../../../../../../../Drivers/CMSIS/Device/ST/STM32N6xx/Include"/>
 									<listOptionValue builtIn="false" value="../../../../../../../Drivers/STM32N6xx_HAL_Driver/Inc"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Drivers\BSP\Components\gt911&quot;"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.2091503809" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>
