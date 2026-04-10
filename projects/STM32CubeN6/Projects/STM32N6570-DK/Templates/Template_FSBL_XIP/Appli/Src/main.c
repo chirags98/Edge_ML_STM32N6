@@ -159,11 +159,11 @@ int main(void)
   lv_obj_center(label);
   */
 
-  /* Release GT911 reset and wait for it to boot before communicating */
-  HAL_GPIO_WritePin(LCD_NRST_GPIO_Port, LCD_NRST_Pin, GPIO_PIN_SET);
-  HAL_Delay(100);
+  /* Launch the Widgets Demo */
+  lv_demo_widgets();
 
-  /* Initialize touchscreen and register LVGL input device */
+  /* Initialize touchscreen after LVGL demo setup — GT911 has had time to boot
+   * since NRST was released HIGH by MX_GPIO_Init at startup */
   TS_Init_t ts_init;
   ts_init.Width       = 800;
   ts_init.Height      = 480;
@@ -176,9 +176,6 @@ int main(void)
   lv_indev_t * indev = lv_indev_create();
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(indev, my_touch_read_cb);
-
-  /* Launch the Widgets Demo */
-  lv_demo_widgets();
 
   	/*
   	// 1. Set a dark, modern background color
