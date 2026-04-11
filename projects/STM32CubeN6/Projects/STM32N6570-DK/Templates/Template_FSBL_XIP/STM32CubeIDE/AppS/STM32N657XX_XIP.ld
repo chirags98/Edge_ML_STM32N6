@@ -145,7 +145,7 @@ SECTIONS
 
   } >RAM AT> ROM
 
-  .noncacheable :
+  .noncacheable (NOLOAD) :
   {
     . = ALIGN(8);
     __snoncacheable = .;/* create symbol for start of section */

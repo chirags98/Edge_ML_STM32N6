@@ -46,6 +46,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+DMA2D_HandleTypeDef hdma2d;
+
 I2C_HandleTypeDef hi2c2;
 
 LTDC_HandleTypeDef hltdc;
@@ -60,8 +62,8 @@ LTDC_HandleTypeDef hltdc;
 
 #define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) /*will be 2 for RGB565 */
 #define BUFF_SIZE (DISPLAY_WIDTH * 100 * BYTE_PER_PIXEL)
-static uint8_t buf_1[BUFF_SIZE];
-static uint8_t buf_2[BUFF_SIZE];
+static uint8_t buf_1[BUFF_SIZE] __attribute__((section("noncacheable_buffer")));
+static uint8_t buf_2[BUFF_SIZE] __attribute__((section("noncacheable_buffer")));
 
 // 2. LTDC Full Framebuffer (what the hardware actually displays)
 // NOTE: For 800x480x3, this requires ~1.15MB of RAM.
@@ -73,6 +75,7 @@ static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_I2C2_Init(void);
+static void MX_DMA2D_Init(void);
 static void SystemIsolation_Config(void);
 /* USER CODE BEGIN PFP */
 void Error_Handler(void);
@@ -126,6 +129,7 @@ int main(void)
   MX_GPIO_Init();
   MX_LTDC_Init();
   MX_I2C2_Init();
+  MX_DMA2D_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
   /* Disable EXTI4: touch is handled by LVGL polling, not interrupt */
@@ -190,6 +194,43 @@ int main(void)
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
+}
+
+/**
+  * @brief DMA2D Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DMA2D_Init(void)
+{
+
+  /* USER CODE BEGIN DMA2D_Init 0 */
+
+  /* USER CODE END DMA2D_Init 0 */
+
+  /* USER CODE BEGIN DMA2D_Init 1 */
+
+  /* USER CODE END DMA2D_Init 1 */
+  hdma2d.Instance = DMA2D;
+  hdma2d.Init.Mode = DMA2D_M2M;
+  hdma2d.Init.ColorMode = DMA2D_OUTPUT_RGB888;
+  hdma2d.Init.OutputOffset = 0;
+  hdma2d.LayerCfg[1].InputOffset = 0;
+  hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_RGB888;
+  hdma2d.LayerCfg[1].AlphaMode = DMA2D_NO_MODIF_ALPHA;
+  hdma2d.LayerCfg[1].InputAlpha = 0;
+  if (HAL_DMA2D_Init(&hdma2d) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMA2D_ConfigLayer(&hdma2d, 1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DMA2D_Init 2 */
+
+  /* USER CODE END DMA2D_Init 2 */
+
 }
 
 /**
@@ -321,9 +362,12 @@ static void MX_LTDC_Init(void)
   RIMC_MasterConfig_t RIMC_master = {0};
   RIMC_master.MasterCID = RIF_CID_1;
   RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
+  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_DMA2D, &RIMC_master);
+
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
 
   /*RISUP configuration*/
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_DMA2D , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_I2C2 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
 
