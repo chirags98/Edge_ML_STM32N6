@@ -61,7 +61,7 @@ LTDC_HandleTypeDef hltdc;
 #define DISPLAY_HEIGHT 480
 
 #define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) /*will be 2 for RGB565 */
-#define BUFF_SIZE (DISPLAY_WIDTH * 100 * BYTE_PER_PIXEL)
+#define BUFF_SIZE (DISPLAY_WIDTH * 40 * BYTE_PER_PIXEL)
 static uint8_t buf_1[BUFF_SIZE] __attribute__((section("noncacheable_buffer")));
 static uint8_t buf_2[BUFF_SIZE] __attribute__((section("noncacheable_buffer")));
 
@@ -187,8 +187,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	lv_timer_handler();
-	HAL_Delay(2);
+	//lv_timer_handler();
+	//HAL_Delay(2);
+
+	lv_timer_handler_run_in_period(8);  // Match LV_DEF_REFR_PERIOD
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -249,7 +251,7 @@ static void MX_I2C2_Init(void)
 
   /* USER CODE END I2C2_Init 1 */
   hi2c2.Instance = I2C2;
-  hi2c2.Init.Timing = 0x00606092;
+  hi2c2.Init.Timing = 0x00200B2B;
   hi2c2.Init.OwnAddress1 = 0;
   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -367,8 +369,8 @@ static void MX_LTDC_Init(void)
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
 
   /*RISUP configuration*/
-  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_DMA2D , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_I2C2 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_DMA2D , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
 
   /* RIF-Aware IPs Config */
@@ -540,20 +542,35 @@ void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_ma
 
 void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map)
 {
-    uint32_t flush_width = lv_area_get_width(area);
+    uint32_t flush_width  = (uint32_t)lv_area_get_width(area);
+    uint32_t flush_height = (uint32_t)lv_area_get_height(area);
+    uint32_t dest_addr    = (uint32_t)&ltdc_frame_buffer[((uint32_t)area->y1 * DISPLAY_WIDTH + (uint32_t)area->x1) * BYTE_PER_PIXEL];
 
-    for(int32_t y = area->y1; y <= area->y2; y++) {
-        uint32_t dest_offset = ((y * DISPLAY_WIDTH) + area->x1) * BYTE_PER_PIXEL;
-        uint32_t src_offset = ((y - area->y1) * flush_width) * BYTE_PER_PIXEL;
-        memcpy(&ltdc_frame_buffer[dest_offset], &px_map[src_offset], flush_width * BYTE_PER_PIXEL);
-    }
+    /* DMA2D M2M: copy rendered tile from render buffer into the LTDC framebuffer.
+     * Source (px_map): tile is tightly packed — InputOffset = 0.
+     * Dest (ltdc_frame_buffer): full 800-wide row — OutputOffset skips remaining pixels. */
+    hdma2d.Init.Mode         = DMA2D_M2M;
+    hdma2d.Init.ColorMode    = DMA2D_OUTPUT_RGB888;
+    hdma2d.Init.OutputOffset = DISPLAY_WIDTH - flush_width;
+    HAL_DMA2D_Init(&hdma2d);
 
-    // Single D-Cache clean covering the entire flushed row span
-    uint32_t start_addr  = (uint32_t)&ltdc_frame_buffer[area->y1 * DISPLAY_WIDTH * BYTE_PER_PIXEL];
-    uint32_t size        = (uint32_t)(area->y2 - area->y1 + 1) * DISPLAY_WIDTH * BYTE_PER_PIXEL;
-    uint32_t aligned_addr = start_addr & ~0x1FUL;
-    uint32_t aligned_size = ((size + (start_addr - aligned_addr) + 0x1FUL) & ~0x1FUL);
-    SCB_CleanDCache_by_Addr((uint32_t*)aligned_addr, aligned_size);
+    hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_RGB888;
+    hdma2d.LayerCfg[1].InputOffset    = 0;
+    hdma2d.LayerCfg[1].AlphaMode      = DMA2D_NO_MODIF_ALPHA;
+    hdma2d.LayerCfg[1].InputAlpha     = 0;
+    HAL_DMA2D_ConfigLayer(&hdma2d, 1);
+
+    /* Clear stale flags left by LVGL's DMA2D draw unit — without this,
+     * PollForTransfer sees the old TC flag and returns immediately
+     * before our M2M transfer actually completes. */
+    __HAL_DMA2D_CLEAR_FLAG(&hdma2d, DMA2D_FLAG_TC | DMA2D_FLAG_CE | DMA2D_FLAG_TE | DMA2D_FLAG_TW);
+
+    HAL_DMA2D_Start(&hdma2d, (uint32_t)px_map, dest_addr, flush_width, flush_height);
+    HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
+
+    /* No D-Cache clean needed:
+     * - px_map (buf_1/buf_2) is non-cacheable — DMA2D reads fresh RAM directly.
+     * - ltdc_frame_buffer: DMA2D writes to RAM; LTDC reads from RAM — cache not involved. */
 
     lv_display_flush_ready(display);
 }
