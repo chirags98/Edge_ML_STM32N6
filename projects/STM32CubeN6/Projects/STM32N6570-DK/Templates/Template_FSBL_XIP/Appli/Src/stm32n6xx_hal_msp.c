@@ -123,6 +123,51 @@ void HAL_DMA2D_MspDeInit(DMA2D_HandleTypeDef* hdma2d)
 }
 
 /**
+  * @brief GPU2D MSP Initialization
+  * This function configures the hardware resources used in this example
+  * @param hgpu2d: GPU2D handle pointer
+  * @retval None
+  */
+void HAL_GPU2D_MspInit(GPU2D_HandleTypeDef* hgpu2d)
+{
+  if(hgpu2d->Instance==GPU2D)
+  {
+    /* USER CODE BEGIN GPU2D_MspInit 0 */
+
+    /* USER CODE END GPU2D_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_GPU2D_CLK_ENABLE();
+    /* USER CODE BEGIN GPU2D_MspInit 1 */
+
+    /* USER CODE END GPU2D_MspInit 1 */
+
+  }
+
+}
+
+/**
+  * @brief GPU2D MSP De-Initialization
+  * This function freeze the hardware resources used in this example
+  * @param hgpu2d: GPU2D handle pointer
+  * @retval None
+  */
+void HAL_GPU2D_MspDeInit(GPU2D_HandleTypeDef* hgpu2d)
+{
+  if(hgpu2d->Instance==GPU2D)
+  {
+    /* USER CODE BEGIN GPU2D_MspDeInit 0 */
+
+    /* USER CODE END GPU2D_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_GPU2D_CLK_DISABLE();
+    /* USER CODE BEGIN GPU2D_MspDeInit 1 */
+
+    /* USER CODE END GPU2D_MspDeInit 1 */
+  }
+
+}
+
+/**
   * @brief I2C MSP Initialization
   * This function configures the hardware resources used in this example
   * @param hi2c: I2C handle pointer

@@ -233,7 +233,7 @@
 #endif
 
 /*Use TSi's aka (Think Silicon) NemaGFX */
-#define LV_USE_NEMA_GFX 0
+#define LV_USE_NEMA_GFX 1
 
 #if LV_USE_NEMA_GFX
     /** Select which NemaGFX static library headers to use. Possible options:
@@ -245,14 +245,14 @@
      * You must also take care to link the correct corresponding static library
      * in libs/nema_gfx/lib/core/
      */
-    #define LV_USE_NEMA_LIB LV_NEMA_LIB_NONE
+    #define LV_USE_NEMA_LIB LV_NEMA_LIB_M55  /* STM32N6 = Cortex-M55 */
 
     /** Select which NemaGFX HAL to use. Possible options:
      * - LV_NEMA_HAL_CUSTOM
      * - LV_NEMA_HAL_STM32 */
-    #define LV_USE_NEMA_HAL LV_NEMA_HAL_CUSTOM
+    #define LV_USE_NEMA_HAL LV_NEMA_HAL_STM32
     #if LV_USE_NEMA_HAL == LV_NEMA_HAL_STM32
-        #define LV_NEMA_STM32_HAL_INCLUDE <stm32u5xx_hal.h>
+        #define LV_NEMA_STM32_HAL_INCLUDE "stm32n6xx_hal.h"
 
         /** Set it to a value like __attribute__((section("Nemagfx_Memory_Pool_Buffer")))
          * and define the section in the linker script if you need the GPU memory to
@@ -262,11 +262,11 @@
     #endif
 
     /*Enable Vector Graphics Operations. Available only if NemaVG library is present*/
-    #define LV_USE_NEMA_VG 0
+    #define LV_USE_NEMA_VG 1
     #if LV_USE_NEMA_VG
         /*Define application's resolution used for VG related buffer allocation */
         #define LV_NEMA_GFX_MAX_RESX 800
-        #define LV_NEMA_GFX_MAX_RESY 600
+        #define LV_NEMA_GFX_MAX_RESY 480
     #endif
 #endif
 
@@ -636,11 +636,11 @@
 #define LV_ATTRIBUTE_EXTERN_DATA
 
 /** Use `float` as `lv_value_precise_t` */
-#define LV_USE_FLOAT            0
+#define LV_USE_FLOAT            1
 
 /** Enable matrix support
  *  - Requires `LV_USE_FLOAT = 1` */
-#define LV_USE_MATRIX           0
+#define LV_USE_MATRIX           1
 
 /** Include `lvgl_private.h` in `lvgl.h` to access internal data and functions by default */
 #ifndef LV_USE_PRIVATE_API
@@ -1053,7 +1053,7 @@
  *  Requires `LV_USE_MATRIX = 1`
  *  and a rendering engine supporting vector graphics, e.g.
  *  (LV_USE_DRAW_SW and LV_USE_THORVG) or LV_USE_DRAW_VG_LITE or LV_USE_NEMA_VG. */
-#define LV_USE_VECTOR_GRAPHIC  0
+#define LV_USE_VECTOR_GRAPHIC  1
 
 /** Enable ThorVG (vector graphics library) from the src/libs folder.
  *  Requires LV_USE_VECTOR_GRAPHIC */

@@ -48,6 +48,8 @@
 
 DMA2D_HandleTypeDef hdma2d;
 
+GPU2D_HandleTypeDef hgpu2d;
+
 I2C_HandleTypeDef hi2c2;
 
 LTDC_HandleTypeDef hltdc;
@@ -76,6 +78,7 @@ static void MX_GPIO_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_DMA2D_Init(void);
+static void MX_GPU2D_Init(void);
 static void SystemIsolation_Config(void);
 /* USER CODE BEGIN PFP */
 void Error_Handler(void);
@@ -130,6 +133,7 @@ int main(void)
   MX_LTDC_Init();
   MX_I2C2_Init();
   MX_DMA2D_Init();
+  MX_GPU2D_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
   /* Disable EXTI4: touch is handled by LVGL polling, not interrupt */
@@ -236,6 +240,32 @@ static void MX_DMA2D_Init(void)
 }
 
 /**
+  * @brief GPU2D Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPU2D_Init(void)
+{
+
+  /* USER CODE BEGIN GPU2D_Init 0 */
+
+  /* USER CODE END GPU2D_Init 0 */
+
+  /* USER CODE BEGIN GPU2D_Init 1 */
+
+  /* USER CODE END GPU2D_Init 1 */
+  hgpu2d.Instance = GPU2D;
+  if (HAL_GPU2D_Init(&hgpu2d) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN GPU2D_Init 2 */
+
+  /* USER CODE END GPU2D_Init 2 */
+
+}
+
+/**
   * @brief I2C2 Initialization Function
   * @param None
   * @retval None
@@ -251,7 +281,7 @@ static void MX_I2C2_Init(void)
 
   /* USER CODE END I2C2_Init 1 */
   hi2c2.Instance = I2C2;
-  hi2c2.Init.Timing = 0x00200B2B;
+  hi2c2.Init.Timing = 0x00606092;
   hi2c2.Init.OwnAddress1 = 0;
   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -366,11 +396,14 @@ static void MX_LTDC_Init(void)
   RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_DMA2D, &RIMC_master);
 
+  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_GPU2D, &RIMC_master);
+
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
 
   /*RISUP configuration*/
-  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_I2C2 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_DMA2D , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_GPU2D , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_I2C2 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
 
   /* RIF-Aware IPs Config */

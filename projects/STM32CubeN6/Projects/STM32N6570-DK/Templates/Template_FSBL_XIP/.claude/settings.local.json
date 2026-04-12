@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(h|c\\)$\")",
+      "Bash(grep -v \".d$\")",
+      "Bash(grep \"\\\\.\\\\\\(c\\\\|h\\\\\\)$\")",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)"
+    ]
+  }
+}
