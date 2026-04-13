@@ -258,11 +258,11 @@
          * and define the section in the linker script if you need the GPU memory to
          * be, e.g. in a region where accesses will not be cached.
          */
-        #define LV_NEMA_STM32_HAL_ATTRIBUTE_POOL_MEM
+        #define LV_NEMA_STM32_HAL_ATTRIBUTE_POOL_MEM __attribute__((section("noncacheable_buffer")))
     #endif
 
     /*Enable Vector Graphics Operations. Available only if NemaVG library is present*/
-    #define LV_USE_NEMA_VG 1
+    #define LV_USE_NEMA_VG 0
     #if LV_USE_NEMA_VG
         /*Define application's resolution used for VG related buffer allocation */
         #define LV_NEMA_GFX_MAX_RESX 800
@@ -1053,7 +1053,7 @@
  *  Requires `LV_USE_MATRIX = 1`
  *  and a rendering engine supporting vector graphics, e.g.
  *  (LV_USE_DRAW_SW and LV_USE_THORVG) or LV_USE_DRAW_VG_LITE or LV_USE_NEMA_VG. */
-#define LV_USE_VECTOR_GRAPHIC  1
+#define LV_USE_VECTOR_GRAPHIC  0
 
 /** Enable ThorVG (vector graphics library) from the src/libs folder.
  *  Requires LV_USE_VECTOR_GRAPHIC */

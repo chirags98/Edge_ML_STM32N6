@@ -56,7 +56,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-
+extern GPU2D_HandleTypeDef hgpu2d;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -232,6 +232,20 @@ void EXTI4_IRQHandler(void)
   /* USER CODE BEGIN EXTI4_IRQn 1 */
 
   /* USER CODE END EXTI4_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPU2D global interrupt.
+  */
+void GPU2D_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPU2D_IRQn 0 */
+
+  /* USER CODE END GPU2D_IRQn 0 */
+  HAL_GPU2D_IRQHandler(&hgpu2d);
+  /* USER CODE BEGIN GPU2D_IRQn 1 */
+
+  /* USER CODE END GPU2D_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

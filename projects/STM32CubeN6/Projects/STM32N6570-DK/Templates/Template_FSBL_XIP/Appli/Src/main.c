@@ -125,7 +125,6 @@ int main(void)
   /* USER CODE END Init */
 
   /* USER CODE BEGIN SysInit */
-  lv_init();   // 1️⃣ Initialize LVGL core
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -136,6 +135,13 @@ int main(void)
   MX_GPU2D_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
+  lv_init();   // Initialize LVGL core AFTER GPU2D is ready
+
+  /* Enable GPU2D command-list-complete interrupt at the peripheral level.
+   * nema_init() inside the library does NOT do this — the reference project
+   * (STM32N6-digits-lcd) writes 0x7E to register 0xFFC explicitly. */
+  HAL_GPU2D_WriteRegister(&hgpu2d, 0xFFCU, 0x7EU);
+
   /* Disable EXTI4: touch is handled by LVGL polling, not interrupt */
   HAL_NVIC_DisableIRQ(EXTI4_IRQn);
 
@@ -260,7 +266,8 @@ static void MX_GPU2D_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN GPU2D_Init 2 */
-
+  HAL_NVIC_SetPriority(GPU2D_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(GPU2D_IRQn);
   /* USER CODE END GPU2D_Init 2 */
 
 }
