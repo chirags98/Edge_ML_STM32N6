@@ -62,14 +62,15 @@ LTDC_HandleTypeDef hltdc;
 #define DISPLAY_WIDTH  800
 #define DISPLAY_HEIGHT 480
 
-#define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) /*will be 2 for RGB565 */
-#define BUFF_SIZE (DISPLAY_WIDTH * 40 * BYTE_PER_PIXEL)
+#define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_ARGB8888)) /* 4 for ARGB8888 */
+#define BUFF_LINES 30  /* lines per partial tile (30*800*4 = 96 KB, same as old 40*800*3) */
+#define BUFF_SIZE (DISPLAY_WIDTH * BUFF_LINES * BYTE_PER_PIXEL)
 static uint8_t buf_1[BUFF_SIZE] __attribute__((section("noncacheable_buffer")));
 static uint8_t buf_2[BUFF_SIZE] __attribute__((section("noncacheable_buffer")));
 
 // 2. LTDC Full Framebuffer (what the hardware actually displays)
-// NOTE: For 800x480x3, this requires ~1.15MB of RAM.
-static uint8_t ltdc_frame_buffer[800 * 480 * BYTE_PER_PIXEL];
+// NOTE: For 800x480x4, this requires ~1.46MB of RAM.
+static uint8_t ltdc_frame_buffer[800 * 480 * BYTE_PER_PIXEL] __attribute__((section("noncacheable_buffer")));
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -225,10 +226,10 @@ static void MX_DMA2D_Init(void)
   /* USER CODE END DMA2D_Init 1 */
   hdma2d.Instance = DMA2D;
   hdma2d.Init.Mode = DMA2D_M2M;
-  hdma2d.Init.ColorMode = DMA2D_OUTPUT_RGB888;
+  hdma2d.Init.ColorMode = DMA2D_OUTPUT_ARGB8888;
   hdma2d.Init.OutputOffset = 0;
   hdma2d.LayerCfg[1].InputOffset = 0;
-  hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_RGB888;
+  hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_ARGB8888;
   hdma2d.LayerCfg[1].AlphaMode = DMA2D_NO_MODIF_ALPHA;
   hdma2d.LayerCfg[1].InputAlpha = 0;
   if (HAL_DMA2D_Init(&hdma2d) != HAL_OK)
@@ -361,7 +362,7 @@ static void MX_LTDC_Init(void)
   pLayerCfg.WindowX1 = 800;
   pLayerCfg.WindowY0 = 0;
   pLayerCfg.WindowY1 = 480;
-  pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB888;
+  pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_ARGB8888;
   pLayerCfg.Alpha = 255;
   pLayerCfg.Alpha0 = 0;
   pLayerCfg.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
@@ -590,11 +591,11 @@ void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_ma
      * Source (px_map): tile is tightly packed — InputOffset = 0.
      * Dest (ltdc_frame_buffer): full 800-wide row — OutputOffset skips remaining pixels. */
     hdma2d.Init.Mode         = DMA2D_M2M;
-    hdma2d.Init.ColorMode    = DMA2D_OUTPUT_RGB888;
+    hdma2d.Init.ColorMode    = DMA2D_OUTPUT_ARGB8888;
     hdma2d.Init.OutputOffset = DISPLAY_WIDTH - flush_width;
     HAL_DMA2D_Init(&hdma2d);
 
-    hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_RGB888;
+    hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_ARGB8888;
     hdma2d.LayerCfg[1].InputOffset    = 0;
     hdma2d.LayerCfg[1].AlphaMode      = DMA2D_NO_MODIF_ALPHA;
     hdma2d.LayerCfg[1].InputAlpha     = 0;
