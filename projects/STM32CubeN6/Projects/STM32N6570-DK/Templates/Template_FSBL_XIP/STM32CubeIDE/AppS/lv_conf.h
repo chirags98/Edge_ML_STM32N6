@@ -263,11 +263,12 @@
 
     /*Enable Vector Graphics Operations. Available only if NemaVG library is present*/
     #define LV_USE_NEMA_VG 0
-    #if LV_USE_NEMA_VG
-        /*Define application's resolution used for VG related buffer allocation */
-        #define LV_NEMA_GFX_MAX_RESX 800
-        #define LV_NEMA_GFX_MAX_RESY 480
-    #endif
+    /* Sized to bump NEMAGFX_MEM_POOL_SIZE (in lv_draw_nema_gfx_stm32_hal.c) from 10 KB
+     * to ~74 KB. The small default starves the GPU ring buffer / circular command list
+     * under scroll workloads, causing command-list wrap corruption (missing polygons)
+     * and eventual hangs in nema_wait_irq_cl. */
+    #define LV_NEMA_GFX_MAX_RESX 256
+    #define LV_NEMA_GFX_MAX_RESY 256
 #endif
 
 /** Use NXP's PXP on iMX RTxxx platforms. */
