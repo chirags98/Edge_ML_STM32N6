@@ -1180,10 +1180,22 @@
         <name>C:/Users/chira/STM32Cube/Repository/STM32Cube_FW_N6_V1.3.0/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_uart_ex.c</name>
       </file>
       <file>
+        <name>C:/Users/chira/STM32Cube/Repository/STM32Cube_FW_N6_V1.3.0/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_dcmipp.c</name>
+      </file>
+      <file>
+        <name>C:/Users/chira/STM32Cube/Repository/STM32Cube_FW_N6_V1.3.0/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_i2c.c</name>
+      </file>
+      <file>
+        <name>C:/Users/chira/STM32Cube/Repository/STM32Cube_FW_N6_V1.3.0/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_i2c_ex.c</name>
+      </file>
+      <file>
         <name>C:/Users/chira/STM32Cube/Repository/STM32Cube_FW_N6_V1.3.0/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_ltdc.c</name>
       </file>
       <file>
         <name>C:/Users/chira/STM32Cube/Repository/STM32Cube_FW_N6_V1.3.0/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_ltdc_ex.c</name>
+      </file>
+      <file>
+        <name>C:/Users/chira/STM32Cube/Repository/STM32Cube_FW_N6_V1.3.0/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_ramcfg.c</name>
       </file>
       <file>
         <name>C:/Users/chira/STM32Cube/Repository/STM32Cube_FW_N6_V1.3.0/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_rif.c</name>

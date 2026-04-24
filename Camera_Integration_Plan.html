@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Camera Integration Plan — STM32N6570-DK</title>
+<style>
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.6;
+  color: #0F172A;
+  background: #fff;
+  max-width: 210mm;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* ── Print media ── */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 18mm 16mm 18mm;
+    @top-center {
+      content: "STM32N6570-DK  |  Camera Integration Plan";
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 8pt;
+      color: #64748B;
+    }
+    @bottom-center {
+      content: "Edge ML — STM32N6  |  2026-04-24  |  Page " counter(page);
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 8pt;
+      color: #64748B;
+    }
+  }
+  .cover-page { page-break-after: always; }
+  .no-break { page-break-inside: avoid; }
+  pre, table { page-break-inside: avoid; }
+  h2 { page-break-before: auto; }
+  .phase-block { page-break-inside: avoid; }
+  body { padding: 0; }
+  .header-bar, .footer-bar { display: none; }
+}
+
+/* ── Screen view ── */
+@media screen {
+  body { padding: 20px; }
+}
+
+/* ── Header bar (screen only) ── */
+.header-bar {
+  background: #1A2A4A;
+  color: #fff;
+  padding: 10px 20px;
+  font-size: 9pt;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+/* ── Cover ── */
+.cover-page {
+  min-height: 270mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 30mm 18mm 20mm;
+  text-align: center;
+}
+.cover-accent-top {
+  width: 100%;
+  height: 6px;
+  background: #1A2A4A;
+  margin-bottom: 16mm;
+}
+.cover-accent-bottom {
+  width: 100%;
+  height: 3px;
+  background: #0EA5E9;
+  margin-top: 8mm;
+  margin-bottom: 12mm;
+}
+.cover-title {
+  font-size: 26pt;
+  font-weight: 700;
+  color: #1A2A4A;
+  line-height: 1.2;
+  margin-bottom: 4mm;
+}
+.cover-subtitle {
+  font-size: 12pt;
+  color: #64748B;
+  margin-bottom: 10mm;
+}
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8mm;
+  text-align: left;
+  font-size: 9.5pt;
+}
+.info-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #CBD5E1;
+  background: #F8FAFC;
+}
+.info-table td:first-child {
+  font-weight: 700;
+  color: #1A2A4A;
+  width: 32mm;
+  white-space: nowrap;
+}
+.info-table tr:last-child td { border-bottom: none; }
+.info-table { border: 1.5px solid #1A2A4A; }
+
+.phase-summary {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8mm;
+  font-size: 9pt;
+}
+.phase-summary th {
+  background: #1E3A5F;
+  color: #fff;
+  padding: 6px 10px;
+  text-align: left;
+}
+.phase-summary td {
+  padding: 5px 10px;
+  border-bottom: 1px solid #CBD5E1;
+}
+.phase-summary tr:nth-child(even) td { background: #EFF6FF; }
+.phase-summary td:first-child { text-align: center; font-weight: 700; color: #1A2A4A; }
+.phase-summary td:last-child  { text-align: center; color: #2563EB; font-style: italic; }
+
+/* ── Content wrapper ── */
+.content {
+  padding: 0 18mm;
+}
+@media print {
+  .content { padding: 0; }
+}
+
+/* ── Headings ── */
+h1 {
+  font-size: 15pt;
+  color: #fff;
+  background: #1A2A4A;
+  padding: 8px 12px;
+  margin: 18px -18mm 8px;
+  letter-spacing: 0.02em;
+}
+@media print {
+  h1 { margin: 14px 0 8px; }
+}
+h2 {
+  font-size: 12pt;
+  color: #1A2A4A;
+  border-bottom: 2.5px solid #0EA5E9;
+  padding-bottom: 4px;
+  margin: 18px 0 6px;
+}
+h3 {
+  font-size: 10.5pt;
+  color: #2563EB;
+  margin: 12px 0 4px;
+}
+h4 {
+  font-size: 10pt;
+  color: #0F172A;
+  margin: 8px 0 3px;
+}
+
+/* ── Text ── */
+p { margin: 0 0 8px; }
+strong { color: #1A2A4A; }
+em { font-style: italic; }
+code {
+  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  font-size: 8.5pt;
+  color: #0F4C81;
+  background: #F1F5F9;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+hr {
+  border: none;
+  border-top: 1px solid #CBD5E1;
+  margin: 12px 0;
+}
+
+/* ── Code blocks ── */
+pre {
+  background: #F1F5F9;
+  border-left: 3px solid #0EA5E9;
+  padding: 8px 12px;
+  margin: 6px 0 10px;
+  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  font-size: 8pt;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1E293B;
+  overflow-x: auto;
+}
+pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* ── Lists ── */
+ul, ol { margin: 4px 0 8px 20px; }
+li { margin-bottom: 3px; }
+ul li::marker { color: #0EA5E9; }
+
+/* ── Tables ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+  font-size: 8.8pt;
+}
+th {
+  background: #1E3A5F;
+  color: #fff;
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 600;
+}
+td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #CBD5E1;
+  vertical-align: top;
+}
+tr:nth-child(even) td { background: #EFF6FF; }
+td code { font-size: 7.8pt; }
+
+/* ── Phase block ── */
+.phase-block {
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  margin: 10px 0 16px;
+  overflow: hidden;
+}
+.phase-header {
+  background: #EFF6FF;
+  border-bottom: 1px solid #CBD5E1;
+  padding: 6px 12px;
+  font-weight: 700;
+  color: #1A2A4A;
+  font-size: 10pt;
+}
+.phase-body {
+  padding: 10px 12px;
+}
+
+/* ── Callout / note ── */
+.callout {
+  background: #FFF7ED;
+  border-left: 4px solid #F97316;
+  padding: 8px 12px;
+  margin: 8px 0;
+  font-size: 9pt;
+  color: #92400E;
+}
+.callout.info {
+  background: #EFF6FF;
+  border-left-color: #2563EB;
+  color: #1E3A5F;
+}
+
+/* ── Print hint (screen only) ── */
+.print-hint {
+  background: #F0FDF4;
+  border: 1px solid #86EFAC;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  font-size: 9.5pt;
+  color: #166534;
+}
+@media print { .print-hint { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="header-bar">
+  <span><strong>STM32N6570-DK</strong> &nbsp;|&nbsp; Camera Integration Plan</span>
+  <span>Edge ML — 2026-04-24</span>
+</div>
+
+<!-- COVER PAGE -->
+<div class="cover-page">
+  <div class="cover-accent-top"></div>
+  <div class="cover-title">Camera Integration Plan</div>
+  <div class="cover-subtitle">STM32N6570-DK &nbsp;·&nbsp; IMX335 &nbsp;·&nbsp; DCMIPP / CSI &nbsp;·&nbsp; LCD 800&times;480</div>
+  <div class="cover-accent-bottom"></div>
+
+  <table class="info-table">
+    <tr><td>Project</td><td>Edge ML — STM32N6 (Template_FSBL_XIP)</td></tr>
+    <tr><td>Board</td><td>STM32N6570-DK Discovery Kit</td></tr>
+    <tr><td>Sensor</td><td>IMX335 (B-CAMS-IMX, 5 MP RAW10)</td></tr>
+    <tr><td>Goal</td><td>Live camera feed on 800&times;480 LCD, ML-pipeline ready</td></tr>
+    <tr><td>Date</td><td>2026-04-24</td></tr>
+    <tr><td>Branch</td><td>Starting_Camera</td></tr>
+  </table>
+
+  <table class="phase-summary">
+    <thead><tr><th>Phase</th><th>Description</th><th>Owner</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>CubeMX Configuration</td><td>User</td></tr>
+      <tr><td>2</td><td>Middleware Copy (CMW + IMX335 + ISP)</td><td>User / Claude</td></tr>
+      <tr><td>3</td><td>New Source Files</td><td>Claude</td></tr>
+      <tr><td>4</td><td>Modify Existing Files</td><td>Claude</td></tr>
+      <tr><td>5</td><td>Linker Script Update</td><td>Claude</td></tr>
+      <tr><td>6</td><td>Build System (CubeIDE)</td><td>User</td></tr>
+      <tr><td>7</td><td>Initialization Order</td><td>Reference</td></tr>
+      <tr><td>8</td><td>Verification Steps</td><td>User</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+<div class="print-hint">
+  &#128210; <strong>To save as PDF:</strong> Press <strong>Ctrl+P</strong> &rarr; Destination: <strong>Save as PDF</strong> &rarr; Paper: A4, Margins: Default &rarr; Enable <em>Background graphics</em> &rarr; <strong>Save</strong>.
+</div>
+
+<h1>Context</h1>
+
+<p>The project has a working FSBL + Application with LTDC display. The goal is to add live camera capture
+(IMX335 via DCMIPP/CSI) and display it full-screen on the 800&times;480 LCD, structured for seamless ML
+integration later. <strong>CMW (Camera Middleware)</strong> from the ST modelzoo is used instead of raw HAL — this
+is the key architectural decision: when ML is added, PIPE2 is simply enabled with no redesign.</p>
+
+<p><strong>Confirmed sensor:</strong> IMX335 (B-CAMS-IMX), confirmed by reference project 3 (DCMIPP_ContinuousMode) which
+targets this exact board and camera module.</p>
+
+<h2>Verified Key Facts</h2>
+
+<table>
+  <thead><tr><th>Item</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td>I2C1 pins (BSP)</td><td>SCL = PH9 (AF4), SDA = PC1 (AF4) — BSP handles MSP init internally</td></tr>
+    <tr><td>Camera GPIOs</td><td>PC8 = CAM_NRST (active-low), PD2 = CAM_EN (active-high) — used by <code>cmw_io.h</code></td></tr>
+    <tr><td>Current LTDC clock</td><td><code>RCC_LTDCCLKSOURCE_PCLK5</code> in <code>HAL_LTDC_MspInit</code> &rarr; must change to IC16/PLL1/&divide;48 = 25 MHz</td></tr>
+    <tr><td>Linker RAM</td><td><code>0x34000000</code>, 2048 KB — ends exactly at <code>0x34200000</code>; AXISRAM3 starts there</td></tr>
+    <tr><td>Frame buffer</td><td>800&times;480&times;2 = 768 KB at <code>0x34200000</code> (AXISRAM3) — RAMCFG enable required before access</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h1>Phase 1: CubeMX Changes</h1>
+<p>Open <code>Template_FSBL_XIP.ioc</code> &rarr; select <strong>Appli</strong> context for all changes below.</p>
+
+<h3>1.1 &nbsp;Enable I2C1</h3>
+<ul>
+  <li>Connectivity &rarr; I2C1 &rarr; Mode: <strong>I2C</strong></li>
+  <li>CubeMX assigns PH9 (SCL, AF4) and PC1 (SDA, AF4) — matches BSP <code>stm32n6570_discovery_bus.h</code></li>
+  <li><strong>After code regeneration:</strong> delete any <code>HAL_I2C_MspInit</code>/<code>MspDeInit</code> stubs CubeMX generates — the BSP bus driver (<code>stm32n6570_discovery_bus.c</code>) owns I2C1 MSP init</li>
+</ul>
+
+<h3>1.2 &nbsp;Enable DCMIPP</h3>
+<ul>
+  <li>Connectivity &rarr; DCMIPP &rarr; Mode: <strong>CSI2 interface</strong></li>
+  <li><strong>After code regeneration:</strong> delete the generated <code>MX_DCMIPP_Init()</code> function body and any <code>HAL_DCMIPP_MspInit</code>/<code>MspDeInit</code> stubs — CMW owns DCMIPP MSP init</li>
+</ul>
+
+<h3>1.3 &nbsp;Enable RAMCFG</h3>
+<ul>
+  <li>System Core &rarr; RAMCFG &rarr; Enabled</li>
+  <li>Adds <code>HAL_RAMCFG_MODULE_ENABLED</code> to <code>stm32n6xx_hal_conf.h</code>. No generated code needed.</li>
+</ul>
+
+<h3>1.4 &nbsp;Clock Configuration</h3>
+<table>
+  <thead><tr><th>Clock</th><th>Source</th><th>Divider</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>IC16 (LTDC)</td><td>PLL1</td><td>&divide;48</td><td>25 MHz</td></tr>
+    <tr><td>IC17 (DCMIPP)</td><td>PLL1</td><td>&divide;4</td><td>300 MHz</td></tr>
+    <tr><td>IC18 (CSI byte)</td><td>PLL1</td><td>&divide;60</td><td>20 MHz</td></tr>
+  </tbody>
+</table>
+<ul>
+  <li>Set LTDC clock source &rarr; IC16</li>
+  <li>Set DCMIPP clock source &rarr; IC17</li>
+  <li>Set CSI clock source &rarr; IC18</li>
+</ul>
+
+<h3>1.5 &nbsp;Reconfigure LTDC Layer 0 (camera feed layer)</h3>
+<ul>
+  <li>Multimedia &rarr; LTDC &rarr; Layer 0:
+    <ul>
+      <li>Window: X0=0, Y0=0, X1=800, Y1=480</li>
+      <li>Pixel Format: <strong>LTDC_PIXEL_FORMAT_RGB565</strong></li>
+      <li>ImageWidth=800, ImageHeight=480</li>
+      <li>FBStartAdress=0 (set at runtime)</li>
+    </ul>
+  </li>
+  <li>Layer 1: disable (not needed for camera-only stage)</li>
+</ul>
+
+<h3>1.6 &nbsp;Add Camera GPIO Pins</h3>
+<ul>
+  <li>PC8: Output PP, no pull, Very High speed, initial Low &rarr; label: <code>CAM_NRST</code></li>
+  <li>PD2: Output PP, no pull, Very High speed, initial Low &rarr; label: <code>CAM_EN</code></li>
+  <li>Assign both to Appli context</li>
+</ul>
+
+<h3>1.7 &nbsp;NVIC</h3>
+<ul>
+  <li>DCMIPP global interrupt: Enabled, preempt priority = 7</li>
+  <li>CSI global interrupt: Enabled, preempt priority = 7</li>
+</ul>
+
+<h3>1.8 &nbsp;Regenerate &rarr; Post-Cleanup</h3>
+<div class="callout">
+  After generating code, <strong>manually delete</strong> these CubeMX-generated stubs to avoid conflicts with CMW:
+  <ul>
+    <li><code>MX_DCMIPP_Init()</code> in <code>main.c</code> — delete entire body (CMW replaces it)</li>
+    <li><code>HAL_DCMIPP_MspInit</code> / <code>HAL_DCMIPP_MspDeInit</code> in <code>stm32n6xx_hal_msp.c</code></li>
+    <li><code>HAL_I2C_MspInit</code> / <code>HAL_I2C_MspDeInit</code> in <code>stm32n6xx_hal_msp.c</code> (if generated)</li>
+  </ul>
+</div>
+
+<hr>
+
+<h1>Phase 2: Middleware to Copy</h1>
+
+<p><strong>Source:</strong> <code>stm32ai-modelzoo-services\application_code\object_detection\STM32N6\Middlewares\stm32-mw-camera\</code></p>
+<p><strong>Destination:</strong> <code>&lt;project_root&gt;\Middlewares\stm32-mw-camera\</code> (alongside <code>Appli\</code>, <code>FSBL\</code>)</p>
+
+<p>Files to copy (IMX335 only — no other sensor files needed):</p>
+
+<pre>
+cmw_camera.c / cmw_camera.h
+cmw_utils.c / cmw_utils.h
+cmw_errno.h
+cmw_io.h
+
+sensors/cmw_imx335.c / cmw_imx335.h
+sensors/cmw_sensors_if.h
+sensors/imx335/imx335.c / imx335.h / imx335_reg.c / imx335_reg.h
+
+ISP_Library/isp/Inc/  (all headers)
+ISP_Library/isp/Src/isp_core.c
+ISP_Library/isp/Src/isp_services.c
+ISP_Library/isp/Src/isp_algo.c
+ISP_Library/isp/Src/isp_ae_algo.c
+ISP_Library/isp/Src/isp_awb_algo.c
+ISP_Library/isp/Src/isp_cmd_parser.c
+ISP_Library/isp/Src/isp_tool_com.c</pre>
+
+<p>Copy this IQ param header from reference project 1's <code>Application/Inc/</code>:</p>
+<pre>imx335_isp_param_conf.h  →  Appli/Inc/imx335_isp_param_conf.h</pre>
+
+<hr>
+
+<h1>Phase 3: New Files to Create</h1>
+
+<h3><code>Appli/Inc/cmw_camera_conf.h</code></h3>
+<p>CMW build configuration — selects IMX335, points to Discovery BSP bus:</p>
+<pre>#ifndef CMW_CAMERA_CONF_H
+#define CMW_CAMERA_CONF_H
+#include "stm32n6xx_hal.h"
+#include "stm32n6570_discovery_bus.h"
+#define USE_IMX335_SENSOR
+#endif</pre>
+
+<h3><code>Appli/Inc/isp_conf.h</code></h3>
+<p>ISP algorithm feature flags:</p>
+<pre>#ifndef ISP_CONF_H
+#define ISP_CONF_H
+#define ISP_MW_SW_AEC_ALGO_SUPPORT
+#define ISP_MW_SW_AWB_ALGO_SUPPORT
+#endif</pre>
+
+<h3><code>Appli/Inc/isp_param_conf.h</code></h3>
+<p>Pulls in IMX335 IQ parameters used by <code>cmw_imx335.c</code>:</p>
+<pre>#ifndef ISP_PARAM_CONF_H
+#define ISP_PARAM_CONF_H
+#include "cmw_camera.h"
+#include "imx335_isp_param_conf.h"
+#endif</pre>
+
+<h3><code>Appli/Src/app_camera.c</code> + <code>Appli/Inc/app_camera.h</code></h3>
+
+<p><strong>app_camera.h</strong> — public API:</p>
+<pre>#define CAMERA_FRAME_WIDTH   800U
+#define CAMERA_FRAME_HEIGHT  480U
+#define CAMERA_FB_SIZE       (CAMERA_FRAME_WIDTH * CAMERA_FRAME_HEIGHT * 2U)
+
+extern volatile int32_t camera_frame_received;
+
+void     App_Camera_Init(void);
+void     App_Camera_Start(void);
+void     App_Camera_IspUpdate(void);
+uint8_t *App_Camera_GetFrameBuffer(void);</pre>
+
+<p><strong>app_camera.c</strong> — implementation outline:</p>
+<ul>
+  <li>Frame buffer declared <code>__attribute__((section(".axisram3_bss"), aligned(32)))</code> at <code>0x34200000</code></li>
+  <li><code>App_Camera_Init()</code>:
+    <ol>
+      <li>Enable AXISRAM3 clock + RAMCFG (<code>HAL_RAMCFG_EnableAXISRAM</code>)</li>
+      <li>Configure RIF for DCMIPP and CSI master/slave attributes</li>
+      <li><code>CMW_CAMERA_Init()</code> with <code>width=0, height=0, fps=30</code></li>
+      <li><code>CMW_CAMERA_SetPipeConfig(DCMIPP_PIPE1, ...)</code> &rarr; RGB565, 800&times;480, fullscreen mode</li>
+    </ol>
+  </li>
+  <li><code>App_Camera_Start()</code>: <code>CMW_CAMERA_Start(DCMIPP_PIPE1, camera_fb, CMW_MODE_CONTINUOUS)</code></li>
+  <li><code>App_Camera_IspUpdate()</code>: <code>CMW_CAMERA_Run()</code></li>
+  <li><code>CMW_CAMERA_PIPE_FrameEventCallback()</code>: increment <code>camera_frame_received</code> on PIPE1</li>
+</ul>
+
+<hr>
+
+<h1>Phase 4: Existing Files to Modify</h1>
+
+<h3><code>Appli/Inc/stm32n6xx_hal_conf.h</code></h3>
+<p>Add three module enables:</p>
+<pre>#define HAL_DCMIPP_MODULE_ENABLED
+#define HAL_I2C_MODULE_ENABLED
+#define HAL_RAMCFG_MODULE_ENABLED</pre>
+
+<h3><code>Appli/Src/stm32n6xx_hal_msp.c</code></h3>
+<p>Add inside <code>/* USER CODE BEGIN 1 */</code> — override of CMW's <code>__weak</code> function:</p>
+<pre>HAL_StatusTypeDef MX_DCMIPP_ClockConfig(DCMIPP_HandleTypeDef *hdcmipp)
+{
+    RCC_PeriphCLKInitTypeDef cfg = {0};
+    // DCMIPP: IC17 = PLL1/4 = 300 MHz
+    cfg.PeriphClockSelection = RCC_PERIPHCLK_DCMIPP;
+    cfg.DcmippClockSelection = RCC_DCMIPPCLKSOURCE_IC17;
+    cfg.ICSelection[RCC_IC17].ClockSelection = RCC_ICCLKSOURCE_PLL1;
+    cfg.ICSelection[RCC_IC17].ClockDivider = 4;
+    HAL_RCCEx_PeriphCLKConfig(&amp;cfg);
+    // CSI: IC18 = PLL1/60 = 20 MHz
+    cfg.PeriphClockSelection = RCC_PERIPHCLK_CSI;
+    cfg.ICSelection[RCC_IC18].ClockSelection = RCC_ICCLKSOURCE_PLL1;
+    cfg.ICSelection[RCC_IC18].ClockDivider = 60;
+    return HAL_RCCEx_PeriphCLKConfig(&amp;cfg);
+}</pre>
+
+<p>Update <code>HAL_LTDC_MspInit</code> — change LTDC clock source:</p>
+<pre>// Change from:
+//   PeriphClkInitStruct.LtdcClockSelection = RCC_LTDCCLKSOURCE_PCLK5;
+// To:
+PeriphClkInitStruct.LtdcClockSelection = RCC_LTDCCLKSOURCE_IC16;
+PeriphClkInitStruct.ICSelection[RCC_IC16].ClockSelection = RCC_ICCLKSOURCE_PLL1;
+PeriphClkInitStruct.ICSelection[RCC_IC16].ClockDivider = 48;</pre>
+
+<h3><code>Appli/Src/main.c</code></h3>
+
+<p><strong>Includes:</strong> add <code>#include "app_camera.h"</code>; remove test image headers.</p>
+
+<p><strong><code>MPU_Config()</code></strong> — add Region 1 for AXISRAM3 frame buffer as non-cacheable:</p>
+<pre>// Region 1: 0x34200000, 768 KB, non-cacheable (camera frame buffer)
+MPU_InitStruct.Number       = MPU_REGION_NUMBER1;
+MPU_InitStruct.BaseAddress  = 0x34200000;
+MPU_InitStruct.LimitAddress = 0x342BFFFF;
+// Attributes: NOT_CACHEABLE</pre>
+
+<p><strong><code>SystemIsolation_Config()</code></strong> — add DCMIPP + CSI RIF entries:</p>
+<pre>HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_DCMIPP, &amp;RIMC_master);
+HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_DCMIPP,
+                                      RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_CSI,
+                                      RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);</pre>
+
+<p><strong>Init sequence in <code>main()</code></strong> (after <code>MX_LTDC_Init</code> and <code>SystemIsolation_Config</code>):</p>
+<pre>HAL_GPIO_WritePin(LCD_ON_OFF_GPIO_Port, LCD_ON_OFF_Pin, GPIO_PIN_SET);
+HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
+App_Camera_Init();
+HAL_LTDC_SetAddress(&amp;hltdc, (uint32_t)App_Camera_GetFrameBuffer(), LTDC_LAYER_1);
+App_Camera_Start();</pre>
+
+<p><strong><code>while(1)</code> loop:</strong></p>
+<pre>App_Camera_IspUpdate();   // AEC/AWB background processing
+HAL_Delay(30);</pre>
+
+<h3><code>Appli/Src/stm32n6xx_it.c</code></h3>
+<p>Add ISR handlers:</p>
+<pre>#include "cmw_camera.h"
+
+void CSI_IRQHandler(void) {
+    HAL_DCMIPP_CSI_IRQHandler(CMW_CAMERA_GetDCMIPPHandle());
+}
+void DCMIPP_IRQHandler(void) {
+    HAL_DCMIPP_IRQHandler(CMW_CAMERA_GetDCMIPPHandle());
+}</pre>
+
+<hr>
+
+<h1>Phase 5: Linker Script Changes</h1>
+
+<p><strong>File:</strong> <code>STM32CubeIDE/AppS/STM32N657XX_XIP.ld</code></p>
+
+<p>Add AXISRAM3 memory region to the <code>MEMORY</code> block:</p>
+<pre>MEMORY {
+  ROM      (xrw) : ORIGIN = 0x70100400, LENGTH = 511K
+  RAM      (xrw) : ORIGIN = 0x34000000, LENGTH = 2048K
+  AXISRAM3 (rw)  : ORIGIN = 0x34200000, LENGTH = 768K   /* camera frame buffer */
+}</pre>
+
+<p>Add section after <code>.bss</code>:</p>
+<pre>.axisram3_bss (NOLOAD) : {
+    . = ALIGN(32);
+    *(.axisram3_bss)
+    *(.axisram3_bss*)
+    . = ALIGN(32);
+} &gt;AXISRAM3</pre>
+
+<hr>
+
+<h1>Phase 6: Build System (CubeIDE)</h1>
+
+<h3>Include Paths to Add</h3>
+<p>Project Properties &rarr; C/C++ Build &rarr; Settings &rarr; MCU GCC Compiler &rarr; Include paths:</p>
+<pre>../../../Middlewares/stm32-mw-camera
+../../../Middlewares/stm32-mw-camera/sensors
+../../../Middlewares/stm32-mw-camera/sensors/imx335
+../../../Middlewares/stm32-mw-camera/ISP_Library/isp/Inc
+../../../Middlewares/stm32-mw-camera/ISP_Library/isp_param_conf</pre>
+
+<h3>Source Files to Add to Build</h3>
+<p>Via Project &rarr; Properties &rarr; C/C++ Build, add linked resources:</p>
+<ul>
+  <li>All CMW <code>.c</code> files listed in Phase 2</li>
+  <li><code>Appli/Src/app_camera.c</code></li>
+  <li>HAL drivers (if not already in build): <code>stm32n6xx_hal_dcmipp.c</code>, <code>stm32n6xx_hal_i2c.c</code>, <code>stm32n6xx_hal_i2c_ex.c</code>, <code>stm32n6xx_hal_ramcfg.c</code>
+    <ul><li>Located at <code>&lt;project_root&gt;/../../../../Drivers/STM32N6xx_HAL_Driver/Src/</code></li></ul>
+  </li>
+</ul>
+
+<hr>
+
+<h1>Phase 7: Initialization Order (Critical)</h1>
+
+<div class="callout info">
+  The order below is mandatory. Deviating from it will cause hard faults or silent failures.
+</div>
+
+<pre>1.  MPU_Config()               ← includes AXISRAM3 non-cacheable region
+2.  SCB_EnableICache/DCache()
+3.  HAL_Init()
+4.  MX_GPIO_Init()             ← CAM_NRST + CAM_EN configured here (from CubeMX)
+5.  MX_LTDC_Init()             ← now uses IC16/PLL1/÷48 = 25 MHz
+6.  SystemIsolation_Config()   ← LTDC + DCMIPP + CSI RIF
+7.  LCD_ON / BL_CTRL GPIO set
+8.  App_Camera_Init()          ← RAMCFG → CMW_CAMERA_Init → pipe config
+9.  HAL_LTDC_SetAddress()      ← point Layer 1 at camera_fb (0x34200000)
+10. App_Camera_Start()         ← HAL_DCMIPP_CSI_PIPE_Start + sensor streaming
+11. while(1): App_Camera_IspUpdate()</pre>
+
+<div class="callout">
+  <strong>Critical:</strong> AXISRAM3 RAMCFG must be enabled (step 8) before any access to <code>0x34200000</code>.
+  DCMIPP RIF must be configured (step 6 or inside step 8) before <code>CMW_CAMERA_Init</code>.
+</div>
+
+<hr>
+
+<h1>Phase 8: Verification Steps</h1>
+
+<ol>
+  <li><strong>Build:</strong> Zero errors. Check <code>.map</code> file: <code>camera_fb</code> at <code>0x34200000</code>, size 768 KB.</li>
+  <li><strong>Debug — Sensor probe:</strong> Step into <code>CMW_CAMERA_Init</code> &rarr; confirm IMX335 chip ID <code>0x0235</code> returned from I2C read.</li>
+  <li><strong>Debug — Frame callback:</strong> Breakpoint in <code>CMW_CAMERA_PIPE_FrameEventCallback</code> — should hit every ~33 ms at 30 fps.</li>
+  <li><strong>Visual:</strong> LCD shows live camera feed at 800&times;480, updating smoothly.</li>
+  <li><strong>ISP:</strong> After 2–3 seconds, brightness/white balance stabilizes (AEC/AWB converging).</li>
+</ol>
+
+<hr>
+
+<h1>ML Stage Upgrade Path</h1>
+<p><em>Additive only — no rework of existing camera code required.</em></p>
+
+<ol>
+  <li>Add <code>CMW_CAMERA_SetPipeConfig(DCMIPP_PIPE2, ...)</code> in <code>App_Camera_Init</code> for NN input dimensions</li>
+  <li>Add PSRAM init (XSPI RAM) before camera init; move <code>camera_fb</code> to <code>.psram_bss</code> section</li>
+  <li>Add PSRAM memory region to linker script (<code>0x91000000</code>, 16 MB)</li>
+  <li>Update MPU: mark PSRAM non-cacheable (instead of / in addition to AXISRAM3)</li>
+  <li>Add NN inference loop calling <code>CMW_CAMERA_Start(DCMIPP_PIPE2, nn_buf, CMW_MODE_SNAPSHOT)</code></li>
+</ol>
+
+<hr>
+
+<h1>Critical Files Summary</h1>
+
+<table>
+  <thead>
+    <tr><th>File</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Template_FSBL_XIP.ioc</code></td><td>CubeMX: add I2C1, DCMIPP, RAMCFG, clocks, GPIO, NVIC, reconfigure LTDC</td></tr>
+    <tr><td><code>Appli/Src/main.c</code></td><td>Add camera init sequence, MPU AXISRAM3 region, RIF entries, while(1) loop</td></tr>
+    <tr><td><code>Appli/Src/stm32n6xx_hal_msp.c</code></td><td>Add <code>MX_DCMIPP_ClockConfig</code>, fix LTDC clock to IC16, delete CubeMX stubs</td></tr>
+    <tr><td><code>Appli/Src/stm32n6xx_it.c</code></td><td>Add <code>CSI_IRQHandler</code> and <code>DCMIPP_IRQHandler</code></td></tr>
+    <tr><td><code>Appli/Inc/stm32n6xx_hal_conf.h</code></td><td>Enable DCMIPP + I2C + RAMCFG HAL modules</td></tr>
+    <tr><td><code>STM32CubeIDE/AppS/STM32N657XX_XIP.ld</code></td><td>Add AXISRAM3 memory region + <code>.axisram3_bss</code> section</td></tr>
+    <tr><td><code>Appli/Src/app_camera.c</code> <em>(new)</em></td><td>CMW wrapper, frame buffer, RIF config, ISP callbacks</td></tr>
+    <tr><td><code>Appli/Inc/app_camera.h</code> <em>(new)</em></td><td>Public camera API</td></tr>
+    <tr><td><code>Appli/Inc/cmw_camera_conf.h</code> <em>(new)</em></td><td>CMW build config — <code>USE_IMX335_SENSOR</code></td></tr>
+    <tr><td><code>Appli/Inc/isp_conf.h</code> <em>(new)</em></td><td>ISP algorithm feature enables</td></tr>
+    <tr><td><code>Appli/Inc/isp_param_conf.h</code> <em>(new)</em></td><td>IMX335 IQ parameter include chain</td></tr>
+    <tr><td><code>Middlewares/stm32-mw-camera/</code> <em>(new)</em></td><td>CMW + IMX335 driver + ISP library files copied from modelzoo</td></tr>
+  </tbody>
+</table>
+
+</div><!-- /content -->
+</body>
+</html>
