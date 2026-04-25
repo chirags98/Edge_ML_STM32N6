@@ -43,8 +43,11 @@ _sstack = _estack - _Min_Stack_Size;
 /* Memories definition */
 MEMORY
 {
-  ROM    (xrw)    : ORIGIN = 0x70100400,   LENGTH = 511K
-  RAM    (xrw)    : ORIGIN = 0x34000000,   LENGTH = 2048K
+  ROM      (xrw)  : ORIGIN = 0x70100400,   LENGTH = 511K
+  RAM      (xrw)  : ORIGIN = 0x34000000,   LENGTH = 2048K
+  /* AXISRAM3 (448K) + AXISRAM4 (448K) combined = 896K.
+     Used for the non-cacheable camera frame buffer (800x480 RGB565 = 750KB). */
+  AXISRAM3 (rw)   : ORIGIN = 0x34200000,   LENGTH = 896K
 }
 
 /* Sections */
@@ -176,6 +179,17 @@ SECTIONS
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
   } >RAM
+
+  /* Camera frame buffer in AXISRAM3/4 (non-cacheable, DMA-coherent).
+     NOLOAD: linker reserves address space; startup code must NOT zero-fill it
+     (the region is powered on at runtime via HAL_RAMCFG_EnableAXISRAM).       */
+  .axisram3_bss (NOLOAD) :
+  {
+    . = ALIGN(4);
+    *(.axisram3_bss)
+    *(.axisram3_bss*)
+    . = ALIGN(4);
+  } >AXISRAM3
 
   /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
   ._user_heap_stack :

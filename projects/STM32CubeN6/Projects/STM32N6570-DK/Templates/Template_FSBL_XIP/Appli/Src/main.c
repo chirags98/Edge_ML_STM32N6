@@ -21,9 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "dolphin_156x129_565.h"
-#include "nature_images_5.h"
-
+#include "app_camera.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,8 +43,6 @@
 
 DCMIPP_HandleTypeDef hdcmipp;
 
-I2C_HandleTypeDef hi2c1;
-
 LTDC_HandleTypeDef hltdc;
 
 RAMCFG_HandleTypeDef hramcfg_SRAM3;
@@ -61,7 +57,6 @@ static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_DCMIPP_Init(void);
-static void MX_I2C1_Init(void);
 static void MX_RAMCFG_Init(void);
 static void SystemIsolation_Config(void);
 /* USER CODE BEGIN PFP */
@@ -113,18 +108,18 @@ int main(void)
   MX_GPIO_Init();
   MX_LTDC_Init();
   MX_DCMIPP_Init();
-  MX_I2C1_Init();
   MX_RAMCFG_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
+
+  /* Turn on the LCD backlight and panel */
   HAL_GPIO_WritePin(LCD_ON_OFF_GPIO_Port, LCD_ON_OFF_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
 
-  //Display image
-  HAL_LTDC_SetAddress(&hltdc, (uint32_t) nature_image_5, 0);
-
-  //Will need to change to rgb565, WxH and position in LTDC layer config for this to work
-  HAL_LTDC_SetAddress(&hltdc, (uint32_t) dolphin_156x129_565, 1);
+  /* Initialise CMW, configure DCMIPP PIPE1 (800x480 RGB565), and start
+     continuous capture.  LTDC Layer 0 is redirected to the frame buffer
+     inside this call, so the live viewfinder appears immediately.          */
+  APP_CAMERA_Init();
 
   /* USER CODE END 2 */
 
@@ -132,23 +127,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* Toggle LED1 every 250ms */
-    //BSP_LED_Toggle(LED_GREEN);
-    //HAL_Delay(25);
+    /* Drive ISP AEC / AWB background algorithms */
+    APP_CAMERA_Run();
 
-	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);
-	BSP_LED_Toggle(LED_GREEN);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 0);
-	HAL_Delay(500);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 1);
-	HAL_Delay(500);
-
-	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_RESET);
-	BSP_LED_Toggle(LED_GREEN);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 0);
-	HAL_Delay(500);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 1);
-	HAL_Delay(500);
+    /* Heartbeat LED */
+    BSP_LED_Toggle(LED_GREEN);
+    HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -165,68 +149,17 @@ static void MX_DCMIPP_Init(void)
 {
 
   /* USER CODE BEGIN DCMIPP_Init 0 */
-
+  /* DCMIPP is fully initialised by CMW_CAMERA_Init() called in APP_CAMERA_Init().
+     This generated stub is intentionally left empty. */
   /* USER CODE END DCMIPP_Init 0 */
 
   /* USER CODE BEGIN DCMIPP_Init 1 */
 
   /* USER CODE END DCMIPP_Init 1 */
-  hdcmipp.Instance = DCMIPP;
-  if (HAL_DCMIPP_Init(&hdcmipp) != HAL_OK)
-  {
-    Error_Handler();
-  }
+
   /* USER CODE BEGIN DCMIPP_Init 2 */
 
   /* USER CODE END DCMIPP_Init 2 */
-
-}
-
-/**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x00200B2B;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -334,6 +267,14 @@ static void MX_RAMCFG_Init(void)
   }
   /* USER CODE BEGIN RAMCFG_Init 2 */
 
+  /* Enable AXISRAM3 and AXISRAM4 clocks and power them on.
+     Required before any DMA or CPU access to 0x34200000 – 0x34EFFFFF.        */
+  __HAL_RCC_AXISRAM3_MEM_CLK_ENABLE();
+  __HAL_RCC_AXISRAM4_MEM_CLK_ENABLE();
+
+  HAL_RAMCFG_EnableAXISRAM(&hramcfg_SRAM3);
+  HAL_RAMCFG_EnableAXISRAM(&hramcfg_SRAM4);
+
   /* USER CODE END RAMCFG_Init 2 */
 
 }
@@ -356,14 +297,14 @@ static void MX_RAMCFG_Init(void)
   /*RIMC configuration*/
   RIMC_MasterConfig_t RIMC_master = {0};
   RIMC_master.MasterCID = RIF_CID_1;
-  RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_NPRIV;
-  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_DCMIPP, &RIMC_master);
-
   RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
+  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_DCMIPP, &RIMC_master);
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
 
   /*RISUP configuration*/
-  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_DCMIPP, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_CSI,    RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1, RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
 
   /* RIF-Aware IPs Config */
 
@@ -514,6 +455,24 @@ void MPU_Config(void)
   MPU_AttributesInit.Attributes = INNER_OUTER(MPU_NOT_CACHEABLE);
 
   HAL_MPU_ConfigMemoryAttributes(&MPU_AttributesInit);
+
+  /** Region 1: camera frame buffer in AXISRAM3+4 (non-cacheable, DMA-coherent)
+  *   SRAM3: 0x34200000, 448KB; SRAM4: 0x34270000, 448KB → combined 896KB
+  *   Frame buffer (800x480 RGB565 = 750KB) fits within this range.
+  *   Reuses Attribute index 0 (non-cacheable) already configured above.
+  */
+  MPU_InitStruct.Enable           = MPU_REGION_ENABLE;
+  MPU_InitStruct.Number           = MPU_REGION_NUMBER1;
+  MPU_InitStruct.BaseAddress      = 0x34200000UL;
+  MPU_InitStruct.LimitAddress     = 0x342DFFFFUL;  /* 0x34200000 + 896K - 1 */
+  MPU_InitStruct.AttributesIndex  = MPU_ATTRIBUTES_NUMBER0;
+  MPU_InitStruct.AccessPermission = MPU_REGION_ALL_RW;
+  MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
+  MPU_InitStruct.DisablePrivExec  = MPU_PRIV_INSTRUCTION_ACCESS_DISABLE;
+  MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
   /* Enables the MPU */
   HAL_MPU_Enable(MPU_HFNMI_PRIVDEF);
 

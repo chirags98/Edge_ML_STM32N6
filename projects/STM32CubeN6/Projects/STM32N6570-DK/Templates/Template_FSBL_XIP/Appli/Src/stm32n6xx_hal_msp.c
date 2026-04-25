@@ -78,166 +78,6 @@ void HAL_MspInit(void)
 }
 
 /**
-  * @brief DCMIPP MSP Initialization
-  * This function configures the hardware resources used in this example
-  * @param hdcmipp: DCMIPP handle pointer
-  * @retval None
-  */
-void HAL_DCMIPP_MspInit(DCMIPP_HandleTypeDef* hdcmipp)
-{
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-  if(hdcmipp->Instance==DCMIPP)
-  {
-    /* USER CODE BEGIN DCMIPP_MspInit 0 */
-
-    /* USER CODE END DCMIPP_MspInit 0 */
-
-  /** Initializes the peripherals clock
-  */
-    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_DCMIPP|RCC_PERIPHCLK_CSI;
-    PeriphClkInitStruct.DcmippClockSelection = RCC_DCMIPPCLKSOURCE_IC17;
-    PeriphClkInitStruct.ICSelection[RCC_IC17].ClockSelection = RCC_ICCLKSOURCE_PLL1;
-    PeriphClkInitStruct.ICSelection[RCC_IC17].ClockDivider = 4;
-    PeriphClkInitStruct.ICSelection[RCC_IC18].ClockSelection = RCC_ICCLKSOURCE_PLL4;
-    PeriphClkInitStruct.ICSelection[RCC_IC18].ClockDivider = 1;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
-    /* Peripheral clock enable */
-    __HAL_RCC_DCMIPP_CLK_ENABLE();
-    __HAL_RCC_CSI_CLK_ENABLE();
-    __HAL_RCC_CSI_FORCE_RESET();
-    __HAL_RCC_CSI_RELEASE_RESET();
-    /* DCMIPP interrupt Init */
-    HAL_NVIC_SetPriority(DCMIPP_IRQn, 7, 0);
-    HAL_NVIC_EnableIRQ(DCMIPP_IRQn);
-    HAL_NVIC_SetPriority(CSI_IRQn, 7, 0);
-    HAL_NVIC_EnableIRQ(CSI_IRQn);
-    /* USER CODE BEGIN DCMIPP_MspInit 1 */
-
-    /* USER CODE END DCMIPP_MspInit 1 */
-
-  }
-
-}
-
-/**
-  * @brief DCMIPP MSP De-Initialization
-  * This function freeze the hardware resources used in this example
-  * @param hdcmipp: DCMIPP handle pointer
-  * @retval None
-  */
-void HAL_DCMIPP_MspDeInit(DCMIPP_HandleTypeDef* hdcmipp)
-{
-  if(hdcmipp->Instance==DCMIPP)
-  {
-    /* USER CODE BEGIN DCMIPP_MspDeInit 0 */
-
-    /* USER CODE END DCMIPP_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_CSI_CLK_DISABLE();
-    __HAL_RCC_CSI_FORCE_RESET();
-    __HAL_RCC_CSI_RELEASE_RESET();
-
-    /* DCMIPP interrupt DeInit */
-    HAL_NVIC_DisableIRQ(DCMIPP_IRQn);
-    HAL_NVIC_DisableIRQ(CSI_IRQn);
-    /* USER CODE BEGIN DCMIPP_MspDeInit 1 */
-
-    /* USER CODE END DCMIPP_MspDeInit 1 */
-  }
-
-}
-
-/**
-  * @brief I2C MSP Initialization
-  * This function configures the hardware resources used in this example
-  * @param hi2c: I2C handle pointer
-  * @retval None
-  */
-void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-  if(hi2c->Instance==I2C1)
-  {
-    /* USER CODE BEGIN I2C1_MspInit 0 */
-
-    /* USER CODE END I2C1_MspInit 0 */
-
-  /** Initializes the peripherals clock
-  */
-    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_I2C1;
-    PeriphClkInitStruct.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    __HAL_RCC_GPIOH_CLK_ENABLE();
-    /**I2C1 GPIO Configuration
-    PC1     ------> I2C1_SDA
-    PH9     ------> I2C1_SCL
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_1;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = GPIO_PIN_9;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-    HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
-
-    /* Peripheral clock enable */
-    __HAL_RCC_I2C1_CLK_ENABLE();
-    /* USER CODE BEGIN I2C1_MspInit 1 */
-
-    /* USER CODE END I2C1_MspInit 1 */
-
-  }
-
-}
-
-/**
-  * @brief I2C MSP De-Initialization
-  * This function freeze the hardware resources used in this example
-  * @param hi2c: I2C handle pointer
-  * @retval None
-  */
-void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
-{
-  if(hi2c->Instance==I2C1)
-  {
-    /* USER CODE BEGIN I2C1_MspDeInit 0 */
-
-    /* USER CODE END I2C1_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_I2C1_CLK_DISABLE();
-
-    /**I2C1 GPIO Configuration
-    PC1     ------> I2C1_SDA
-    PH9     ------> I2C1_SCL
-    */
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_1);
-
-    HAL_GPIO_DeInit(GPIOH, GPIO_PIN_9);
-
-    /* USER CODE BEGIN I2C1_MspDeInit 1 */
-
-    /* USER CODE END I2C1_MspDeInit 1 */
-  }
-
-}
-
-/**
   * @brief LTDC MSP Initialization
   * This function configures the hardware resources used in this example
   * @param hltdc: LTDC handle pointer
@@ -463,5 +303,35 @@ void HAL_RAMCFG_MspDeInit(RAMCFG_HandleTypeDef* hramcfg)
 }
 
 /* USER CODE BEGIN 1 */
+
+/**
+  * @brief  Override the weak MX_DCMIPP_ClockConfig declared in cmw_camera.h.
+  *         Called by CMW_CAMERA_Init before HAL_DCMIPP_Init.
+  *         IC17/PLL1 ÷4 = 300 MHz  → DCMIPP pixel clock
+  *         IC18/PLL1 ÷60 = 20 MHz  → CSI byte clock
+  */
+HAL_StatusTypeDef MX_DCMIPP_ClockConfig(DCMIPP_HandleTypeDef *hdcmipp)
+{
+  (void)hdcmipp;
+  RCC_PeriphCLKInitTypeDef cfg = {0};
+  HAL_StatusTypeDef ret;
+
+  /* DCMIPP clock: IC17 sourced from PLL1, divided by 4 → 300 MHz */
+  cfg.PeriphClockSelection                    = RCC_PERIPHCLK_DCMIPP;
+  cfg.DcmippClockSelection                    = RCC_DCMIPPCLKSOURCE_IC17;
+  cfg.ICSelection[RCC_IC17].ClockSelection    = RCC_ICCLKSOURCE_PLL1;
+  cfg.ICSelection[RCC_IC17].ClockDivider      = 4;
+  ret = HAL_RCCEx_PeriphCLKConfig(&cfg);
+  if (ret != HAL_OK)
+  {
+    return ret;
+  }
+
+  /* CSI byte clock: IC18 sourced from PLL1, divided by 60 → 20 MHz */
+  cfg.PeriphClockSelection                    = RCC_PERIPHCLK_CSI;
+  cfg.ICSelection[RCC_IC18].ClockSelection    = RCC_ICCLKSOURCE_PLL1;
+  cfg.ICSelection[RCC_IC18].ClockDivider      = 60;
+  return HAL_RCCEx_PeriphCLKConfig(&cfg);
+}
 
 /* USER CODE END 1 */

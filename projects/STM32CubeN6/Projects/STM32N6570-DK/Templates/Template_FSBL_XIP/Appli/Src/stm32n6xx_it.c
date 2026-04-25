@@ -55,7 +55,9 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern DCMIPP_HandleTypeDef hdcmipp;
+/* hcamera_dcmipp is the DCMIPP handle owned by the CMW (cmw_camera.c).
+   It is declared non-static there, so we reference it directly here.       */
+extern DCMIPP_HandleTypeDef hcamera_dcmipp;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -221,7 +223,7 @@ void DCMIPP_IRQHandler(void)
   /* USER CODE BEGIN DCMIPP_IRQn 0 */
 
   /* USER CODE END DCMIPP_IRQn 0 */
-  HAL_DCMIPP_IRQHandler(&hdcmipp);
+  HAL_DCMIPP_IRQHandler(&hcamera_dcmipp);
   /* USER CODE BEGIN DCMIPP_IRQn 1 */
 
   /* USER CODE END DCMIPP_IRQn 1 */
@@ -235,7 +237,7 @@ void CSI_IRQHandler(void)
   /* USER CODE BEGIN CSI_IRQn 0 */
 
   /* USER CODE END CSI_IRQn 0 */
-  HAL_DCMIPP_CSI_IRQHandler(&hdcmipp);
+  HAL_DCMIPP_CSI_IRQHandler(&hcamera_dcmipp);
   /* USER CODE BEGIN CSI_IRQn 1 */
 
   /* USER CODE END CSI_IRQn 1 */
