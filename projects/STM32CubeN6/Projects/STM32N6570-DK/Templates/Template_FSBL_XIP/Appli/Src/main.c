@@ -21,8 +21,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "dolphin_156x129_565.h"
-#include "nature_images_5.h"
+//#include "dolphin_156x129_565.h"
+//#include "nature_images_5.h"
+
+#include "isp_api.h"
+#include "imx335_E27_isp_param_conf.h"
 
 /* USER CODE END Includes */
 
