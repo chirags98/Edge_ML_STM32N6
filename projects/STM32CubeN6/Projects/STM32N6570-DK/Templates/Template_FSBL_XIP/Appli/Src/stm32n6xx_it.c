@@ -55,7 +55,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-
+extern DCMIPP_HandleTypeDef hdcmipp;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -212,6 +212,34 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32n6xx.s).                    */
 /******************************************************************************/
+
+/**
+  * @brief This function handles DCMIPP global interrupt.
+  */
+void DCMIPP_IRQHandler(void)
+{
+  /* USER CODE BEGIN DCMIPP_IRQn 0 */
+
+  /* USER CODE END DCMIPP_IRQn 0 */
+  HAL_DCMIPP_IRQHandler(&hdcmipp);
+  /* USER CODE BEGIN DCMIPP_IRQn 1 */
+
+  /* USER CODE END DCMIPP_IRQn 1 */
+}
+
+/**
+  * @brief This function handles CSI global interrupt.
+  */
+void CSI_IRQHandler(void)
+{
+  /* USER CODE BEGIN CSI_IRQn 0 */
+
+  /* USER CODE END CSI_IRQn 0 */
+  HAL_DCMIPP_CSI_IRQHandler(&hdcmipp);
+  /* USER CODE BEGIN CSI_IRQn 1 */
+
+  /* USER CODE END CSI_IRQn 1 */
+}
 
 /* USER CODE BEGIN 1 */
 

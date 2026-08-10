@@ -77,8 +77,12 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LCD_BL_CTRL_Pin GPIO_PIN_6
 #define LCD_BL_CTRL_GPIO_Port GPIOQ
+#define PWR_EN_Pin GPIO_PIN_2
+#define PWR_EN_GPIO_Port GPIOD
 #define LCD_ON_OFF_Pin GPIO_PIN_3
 #define LCD_ON_OFF_GPIO_Port GPIOQ
+#define NRST_Pin GPIO_PIN_8
+#define NRST_GPIO_Port GPIOC
 #define LCD_NRST_Pin GPIO_PIN_1
 #define LCD_NRST_GPIO_Port GPIOE
 

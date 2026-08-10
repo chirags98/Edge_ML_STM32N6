@@ -46,7 +46,14 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+DCMIPP_HandleTypeDef hdcmipp;
+
+I2C_HandleTypeDef hi2c1;
+
 LTDC_HandleTypeDef hltdc;
+
+RAMCFG_HandleTypeDef hramcfg_SRAM3;
+RAMCFG_HandleTypeDef hramcfg_SRAM4;
 
 /* USER CODE BEGIN PV */
 
@@ -56,6 +63,9 @@ LTDC_HandleTypeDef hltdc;
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_LTDC_Init(void);
+static void MX_DCMIPP_Init(void);
+static void MX_I2C1_Init(void);
+static void MX_RAMCFG_Init(void);
 static void SystemIsolation_Config(void);
 /* USER CODE BEGIN PFP */
 void Error_Handler(void);
@@ -105,6 +115,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_LTDC_Init();
+  MX_DCMIPP_Init();
+  MX_I2C1_Init();
+  MX_RAMCFG_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
   HAL_GPIO_WritePin(LCD_ON_OFF_GPIO_Port, LCD_ON_OFF_Pin, GPIO_PIN_SET);
@@ -147,6 +160,109 @@ int main(void)
 }
 
 /**
+  * @brief DCMIPP Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DCMIPP_Init(void)
+{
+
+  /* USER CODE BEGIN DCMIPP_Init 0 */
+
+  /* USER CODE END DCMIPP_Init 0 */
+
+  DCMIPP_CSI_PIPE_ConfTypeDef pCSI_PipeConfig = {0};
+  DCMIPP_CSI_ConfTypeDef pCSI_Config = {0};
+  DCMIPP_PipeConfTypeDef pPipeConfig = {0};
+
+  /* USER CODE BEGIN DCMIPP_Init 1 */
+
+  /* USER CODE END DCMIPP_Init 1 */
+  hdcmipp.Instance = DCMIPP;
+  if (HAL_DCMIPP_Init(&hdcmipp) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Pipe 1 Config
+  */
+  pCSI_PipeConfig.DataTypeMode = DCMIPP_DTMODE_DTIDA;
+  pCSI_PipeConfig.DataTypeIDA = DCMIPP_DT_RAW10;
+  pCSI_PipeConfig.DataTypeIDB = DCMIPP_DT_RAW10;
+  if (HAL_DCMIPP_CSI_PIPE_SetConfig(&hdcmipp, DCMIPP_PIPE1, &pCSI_PipeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  pCSI_Config.PHYBitrate = DCMIPP_CSI_PHY_BT_1600;
+  pCSI_Config.DataLaneMapping = DCMIPP_CSI_PHYSICAL_DATA_LANES;
+  pCSI_Config.NumberOfLanes = DCMIPP_CSI_TWO_DATA_LANES;
+  HAL_DCMIPP_CSI_SetConfig(&hdcmipp, &pCSI_Config);
+  pPipeConfig.FrameRate = DCMIPP_FRAME_RATE_ALL;
+  pPipeConfig.PixelPipePitch = 1600;
+  pPipeConfig.PixelPackerFormat = DCMIPP_PIXEL_PACKER_FORMAT_RGB565_1;
+  if (HAL_DCMIPP_PIPE_SetConfig(&hdcmipp, DCMIPP_PIPE1, &pPipeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DCMIPP_CSI_SetVCConfig(&hdcmipp, 0U, DCMIPP_CSI_DT_BPP10) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DCMIPP_Init 2 */
+
+  /* USER CODE END DCMIPP_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x00200B2B;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
   * @brief LTDC Initialization Function
   * @param None
   * @retval None
@@ -185,17 +301,17 @@ static void MX_LTDC_Init(void)
     Error_Handler();
   }
   pLayerCfg.WindowX0 = 0;
-  pLayerCfg.WindowX1 = 300;
+  pLayerCfg.WindowX1 = 800;
   pLayerCfg.WindowY0 = 0;
-  pLayerCfg.WindowY1 = 158;
-  pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB888;
+  pLayerCfg.WindowY1 = 480;
+  pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB565;
   pLayerCfg.Alpha = 255;
   pLayerCfg.Alpha0 = 0;
   pLayerCfg.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
   pLayerCfg.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
   pLayerCfg.FBStartAdress = 0;
-  pLayerCfg.ImageWidth = 300;
-  pLayerCfg.ImageHeight = 158;
+  pLayerCfg.ImageWidth = 800;
+  pLayerCfg.ImageHeight = 480;
   pLayerCfg.Backcolor.Blue = 255;
   pLayerCfg.Backcolor.Green = 0;
   pLayerCfg.Backcolor.Red = 0;
@@ -204,17 +320,17 @@ static void MX_LTDC_Init(void)
     Error_Handler();
   }
   pLayerCfg1.WindowX0 = 0;
-  pLayerCfg1.WindowX1 = 156;
+  pLayerCfg1.WindowX1 = 800;
   pLayerCfg1.WindowY0 = 0;
-  pLayerCfg1.WindowY1 = 129;
+  pLayerCfg1.WindowY1 = 480;
   pLayerCfg1.PixelFormat = LTDC_PIXEL_FORMAT_RGB565;
   pLayerCfg1.Alpha = 255;
   pLayerCfg1.Alpha0 = 0;
   pLayerCfg1.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
   pLayerCfg1.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
   pLayerCfg1.FBStartAdress = 0;
-  pLayerCfg1.ImageWidth = 156;
-  pLayerCfg1.ImageHeight = 129;
+  pLayerCfg1.ImageWidth = 800;
+  pLayerCfg1.ImageHeight = 480;
   pLayerCfg1.Backcolor.Blue = 255;
   pLayerCfg1.Backcolor.Green = 0;
   pLayerCfg1.Backcolor.Red = 0;
@@ -238,6 +354,43 @@ static void MX_LTDC_Init(void)
 }
 
 /**
+  * @brief RAMCFG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RAMCFG_Init(void)
+{
+
+  /* USER CODE BEGIN RAMCFG_Init 0 */
+
+  /* USER CODE END RAMCFG_Init 0 */
+
+  /* USER CODE BEGIN RAMCFG_Init 1 */
+
+  /* USER CODE END RAMCFG_Init 1 */
+
+  /** Initialize RAMCFG SRAM3
+  */
+  hramcfg_SRAM3.Instance = RAMCFG_SRAM3_AXI;
+  if (HAL_RAMCFG_Init(&hramcfg_SRAM3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Initialize RAMCFG SRAM4
+  */
+  hramcfg_SRAM4.Instance = RAMCFG_SRAM4_AXI;
+  if (HAL_RAMCFG_Init(&hramcfg_SRAM4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RAMCFG_Init 2 */
+
+  /* USER CODE END RAMCFG_Init 2 */
+
+}
+
+/**
   * @brief RIF Initialization Function
   * @param None
   * @retval None
@@ -256,9 +409,12 @@ static void MX_LTDC_Init(void)
   RIMC_MasterConfig_t RIMC_master = {0};
   RIMC_master.MasterCID = RIF_CID_1;
   RIMC_master.SecPriv = RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV;
+  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_DCMIPP, &RIMC_master);
+
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
 
   /*RISUP configuration*/
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_DCMIPP , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
 
   /* RIF-Aware IPs Config */
@@ -275,6 +431,9 @@ static void MX_LTDC_Init(void)
   HAL_GPIO_ConfigPinAttributes(GPIOB,GPIO_PIN_13,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
   HAL_GPIO_ConfigPinAttributes(GPIOB,GPIO_PIN_14,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
   HAL_GPIO_ConfigPinAttributes(GPIOB,GPIO_PIN_15,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOC,GPIO_PIN_1,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOC,GPIO_PIN_8,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOD,GPIO_PIN_2,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
   HAL_GPIO_ConfigPinAttributes(GPIOD,GPIO_PIN_8,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
   HAL_GPIO_ConfigPinAttributes(GPIOD,GPIO_PIN_9,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
   HAL_GPIO_ConfigPinAttributes(GPIOD,GPIO_PIN_15,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
@@ -291,6 +450,7 @@ static void MX_LTDC_Init(void)
   HAL_GPIO_ConfigPinAttributes(GPIOH,GPIO_PIN_3,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
   HAL_GPIO_ConfigPinAttributes(GPIOH,GPIO_PIN_4,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
   HAL_GPIO_ConfigPinAttributes(GPIOH,GPIO_PIN_6,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
+  HAL_GPIO_ConfigPinAttributes(GPIOH,GPIO_PIN_9,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
   HAL_GPIO_ConfigPinAttributes(GPIOQ,GPIO_PIN_3,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
   HAL_GPIO_ConfigPinAttributes(GPIOQ,GPIO_PIN_6,GPIO_PIN_SEC|GPIO_PIN_NPRIV);
 
@@ -317,6 +477,7 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOQ_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -328,6 +489,12 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOQ, LCD_BL_CTRL_Pin|LCD_ON_OFF_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(PWR_EN_GPIO_Port, PWR_EN_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(NRST_GPIO_Port, NRST_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LCD_NRST_GPIO_Port, LCD_NRST_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : LCD_BL_CTRL_Pin LCD_ON_OFF_Pin */
@@ -336,6 +503,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOQ, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PWR_EN_Pin */
+  GPIO_InitStruct.Pin = PWR_EN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(PWR_EN_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : NRST_Pin */
+  GPIO_InitStruct.Pin = NRST_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(NRST_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LCD_NRST_Pin */
   GPIO_InitStruct.Pin = LCD_NRST_Pin;
