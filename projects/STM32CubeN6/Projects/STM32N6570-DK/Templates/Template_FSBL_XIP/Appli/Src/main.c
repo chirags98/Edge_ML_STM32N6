@@ -21,12 +21,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include "dolphin_156x129_565.h"
-//#include "nature_images_5.h"
-
 #include "isp_api.h"
 #include "imx335_E27_isp_param_conf.h"
-
+#include "imx335.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,7 +33,16 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define CAMERA_IMX335_ADDRESS 0x34U
+#define FRAME_WIDTH        800
+#define FRAME_HEIGHT       480
+#define FRAME_BUFFER_SIZE  (FRAME_WIDTH * FRAME_HEIGHT * 2)   /* RGB565 = 2 bytes/pixel */
+#define BUFFER_ADDRESS     0x34200000   /* must fall inside AXISRAM3/4 range */
 
+#define DIV_FACTOR(SRC, DST) (((uint32_t)((1024 * DST) / SRC)) > 1023 ? 1023 : ((uint32_t)((1024 * DST) / SRC)))
+#define DOWNSCALE_RATIO(SRC, DST) (((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192) < 8192) ? 8192 : \
+                                   ((((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192)) > 65535) ? 65535 : \
+                                   ((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192))))
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -56,7 +62,10 @@ RAMCFG_HandleTypeDef hramcfg_SRAM3;
 RAMCFG_HandleTypeDef hramcfg_SRAM4;
 
 /* USER CODE BEGIN PV */
-
+static IMX335_Object_t IMX335Obj;
+static int32_t isp_gain;
+static int32_t isp_exposure;
+ISP_HandleTypeDef hcamera_isp;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,6 +77,17 @@ static void MX_I2C1_Init(void);
 static void MX_RAMCFG_Init(void);
 static void SystemIsolation_Config(void);
 /* USER CODE BEGIN PFP */
+static int32_t YourI2C1_Init(void);
+static int32_t YourI2C1_DeInit(void);
+static int32_t YourI2C1_WriteReg16(uint16_t DevAddr, uint16_t Reg, uint8_t *pData, uint16_t Length);
+static int32_t YourI2C1_ReadReg16(uint16_t DevAddr, uint16_t Reg, uint8_t *pData, uint16_t Length);
+static int32_t YourI2C1_GetTick(void);
+
+static ISP_StatusTypeDef GetSensorInfoHelper(uint32_t Instance, ISP_SensorInfoTypeDef *SensorInfo);
+static ISP_StatusTypeDef SetSensorGainHelper(uint32_t Instance, int32_t Gain);
+static ISP_StatusTypeDef GetSensorGainHelper(uint32_t Instance, int32_t *Gain);
+static ISP_StatusTypeDef SetSensorExposureHelper(uint32_t Instance, int32_t Exposure);
+static ISP_StatusTypeDef GetSensorExposureHelper(uint32_t Instance, int32_t *Exposure);
 void Error_Handler(void);
 
 /* USER CODE END PFP */
@@ -114,44 +134,79 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+
+  HAL_GPIO_WritePin(NRST_GPIO_Port, NRST_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(PWR_EN_GPIO_Port, PWR_EN_Pin, GPIO_PIN_RESET);
+  HAL_Delay(200);
+  HAL_GPIO_WritePin(PWR_EN_GPIO_Port, PWR_EN_Pin, GPIO_PIN_SET);
+  HAL_Delay(3);
+
   MX_LTDC_Init();
   MX_DCMIPP_Init();
   MX_I2C1_Init();
   MX_RAMCFG_Init();
+
+  LL_MEM_EnableClock(LL_MEM_AXISRAM3);
+  LL_MEM_EnableClock(LL_MEM_AXISRAM4);
+  HAL_RAMCFG_EnableAXISRAM(&hramcfg_SRAM3);
+  HAL_RAMCFG_EnableAXISRAM(&hramcfg_SRAM4);
+
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
+
+  DCMIPP_DownsizeTypeDef DownsizeConf = {0};
+  DownsizeConf.HSize      = FRAME_WIDTH;
+  DownsizeConf.VSize      = FRAME_HEIGHT;
+  DownsizeConf.HRatio     = DOWNSCALE_RATIO(IMX335_WIDTH, FRAME_WIDTH);
+  DownsizeConf.VRatio     = DOWNSCALE_RATIO(IMX335_HEIGHT, FRAME_HEIGHT);
+  DownsizeConf.HDivFactor = DIV_FACTOR(IMX335_WIDTH, FRAME_WIDTH);
+  DownsizeConf.VDivFactor = DIV_FACTOR(IMX335_HEIGHT, FRAME_HEIGHT);
+  HAL_DCMIPP_PIPE_SetDownsizeConfig(&hdcmipp, DCMIPP_PIPE1, &DownsizeConf);
+  HAL_DCMIPP_PIPE_EnableDownsize(&hdcmipp, DCMIPP_PIPE1);
+
   HAL_GPIO_WritePin(LCD_ON_OFF_GPIO_Port, LCD_ON_OFF_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
 
-  //Display image
-  HAL_LTDC_SetAddress(&hltdc, (uint32_t) nature_image_5, 0);
+  IMX335_IO_t IOCtx;
+  IOCtx.Address  = CAMERA_IMX335_ADDRESS;
+  IOCtx.Init     = YourI2C1_Init;     /* can just be a no-op, since MX_I2C1_Init() already ran */
+  IOCtx.DeInit   = YourI2C1_DeInit;
+  IOCtx.ReadReg  = YourI2C1_ReadReg16;
+  IOCtx.WriteReg = YourI2C1_WriteReg16;
+  IOCtx.GetTick  = YourI2C1_GetTick;
 
-  //Will need to change to rgb565, WxH and position in LTDC layer config for this to work
-  HAL_LTDC_SetAddress(&hltdc, (uint32_t) dolphin_156x129_565, 1);
+  uint32_t id;
+  IMX335_RegisterBusIO(&IMX335Obj, &IOCtx);
+  IMX335_ReadID(&IMX335Obj, &id);                 /* check id == IMX335_CHIP_ID */
+  IMX335_Init(&IMX335Obj, IMX335_R2592_1944, IMX335_RAW_RGGB10);
+  IMX335_SetFrequency(&IMX335Obj, IMX335_INCK_24MHZ);
 
+  HAL_LTDC_SetAddress(&hltdc, BUFFER_ADDRESS, 0);  /* point the display layer at the shared buffer */
+
+  ISP_AppliHelpersTypeDef appliHelpers = {0};
+  appliHelpers.GetSensorInfo     = GetSensorInfoHelper;
+  appliHelpers.SetSensorGain     = SetSensorGainHelper;
+  appliHelpers.GetSensorGain     = GetSensorGainHelper;
+  appliHelpers.SetSensorExposure = SetSensorExposureHelper;
+  appliHelpers.GetSensorExposure = GetSensorExposureHelper;
+
+  if (ISP_Init(&hcamera_isp, &hdcmipp, 0, &appliHelpers, ISP_IQParamCacheInit[0]) != ISP_OK)
+  {
+    Error_Handler();
+  }
+
+  HAL_DCMIPP_CSI_PIPE_Start(&hdcmipp, DCMIPP_PIPE1, DCMIPP_VIRTUAL_CHANNEL0, BUFFER_ADDRESS, DCMIPP_MODE_CONTINUOUS);
+  ISP_Start(&hcamera_isp);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* Toggle LED1 every 250ms */
-    //BSP_LED_Toggle(LED_GREEN);
-    //HAL_Delay(25);
-
-	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_SET);
-	BSP_LED_Toggle(LED_GREEN);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 0);
-	HAL_Delay(500);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 1);
-	HAL_Delay(500);
-
-	//HAL_GPIO_WritePin(User_Led_GPIO_Port, User_Led_Pin, GPIO_PIN_RESET);
-	BSP_LED_Toggle(LED_GREEN);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_NONE, 0);
-	HAL_Delay(500);
-	HAL_LTDC_ConfigMirror(&hltdc,LTDC_MIRROR_HORIZONTAL, 1);
-	HAL_Delay(500);
+	if (ISP_BackgroundProcess(&hcamera_isp) != ISP_OK)
+	{
+		BSP_LED_Toggle(LED_RED);   /* or your own error indicator */
+	}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -531,7 +586,75 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static int32_t YourI2C1_Init(void)
+{
+  return 0;   /* no-op: MX_I2C1_Init() already ran earlier in main() */
+}
 
+static int32_t YourI2C1_DeInit(void)
+{
+  return 0;
+}
+
+static int32_t YourI2C1_WriteReg16(uint16_t DevAddr, uint16_t Reg, uint8_t *pData, uint16_t Length)
+{
+  return (HAL_I2C_Mem_Write(&hi2c1, DevAddr, Reg, I2C_MEMADD_SIZE_16BIT, pData, Length, 1000) == HAL_OK) ? 0 : -1;
+}
+
+static int32_t YourI2C1_ReadReg16(uint16_t DevAddr, uint16_t Reg, uint8_t *pData, uint16_t Length)
+{
+  return (HAL_I2C_Mem_Read(&hi2c1, DevAddr, Reg, I2C_MEMADD_SIZE_16BIT, pData, Length, 1000) == HAL_OK) ? 0 : -1;
+}
+
+static int32_t YourI2C1_GetTick(void)
+{
+  return (int32_t)HAL_GetTick();
+}
+
+static ISP_StatusTypeDef GetSensorInfoHelper(uint32_t Instance, ISP_SensorInfoTypeDef *SensorInfo)
+{
+  UNUSED(Instance);
+  return (ISP_StatusTypeDef) IMX335_GetSensorInfo(&IMX335Obj, (IMX335_SensorInfo_t *) SensorInfo);
+}
+static ISP_StatusTypeDef SetSensorGainHelper(uint32_t Instance, int32_t Gain)
+{
+  UNUSED(Instance);
+  isp_gain = Gain;
+  return (ISP_StatusTypeDef) IMX335_SetGain(&IMX335Obj, Gain);
+}
+static ISP_StatusTypeDef GetSensorGainHelper(uint32_t Instance, int32_t *Gain)
+{
+  UNUSED(Instance);
+  *Gain = isp_gain;
+  return ISP_OK;
+}
+static ISP_StatusTypeDef SetSensorExposureHelper(uint32_t Instance, int32_t Exposure)
+{
+  UNUSED(Instance);
+  isp_exposure = Exposure;
+  return (ISP_StatusTypeDef) IMX335_SetExposure(&IMX335Obj, Exposure);
+}
+static ISP_StatusTypeDef GetSensorExposureHelper(uint32_t Instance, int32_t *Exposure)
+{
+  UNUSED(Instance);
+  *Exposure = isp_exposure;
+  return ISP_OK;
+}
+
+void HAL_DCMIPP_PIPE_FrameEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t Pipe)
+{
+  /* optional frame counter */
+}
+
+void HAL_DCMIPP_PIPE_VsyncEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t Pipe)
+{
+  UNUSED(hdcmipp);
+  if (Pipe == DCMIPP_PIPE1)
+  {
+    ISP_IncMainFrameId(&hcamera_isp);
+    ISP_GatherStatistics(&hcamera_isp);
+  }
+}
 /* USER CODE END 4 */
 
  /* MPU Configuration */
