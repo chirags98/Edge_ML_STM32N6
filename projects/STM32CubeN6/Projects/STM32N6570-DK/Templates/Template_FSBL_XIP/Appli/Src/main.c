@@ -34,7 +34,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define CAMERA_IMX335_ADDRESS 0x34U
-#define FRAME_WIDTH        800
+#define FRAME_WIDTH        640
 #define FRAME_HEIGHT       480
 #define FRAME_BUFFER_SIZE  (FRAME_WIDTH * FRAME_HEIGHT * 2)   /* RGB565 = 2 bytes/pixel */
 #define BUFFER_ADDRESS     0x34200000   /* must fall inside AXISRAM3/4 range */
@@ -264,7 +264,7 @@ static void MX_DCMIPP_Init(void)
   pCSI_Config.NumberOfLanes = DCMIPP_CSI_TWO_DATA_LANES;
   HAL_DCMIPP_CSI_SetConfig(&hdcmipp, &pCSI_Config);
   pPipeConfig.FrameRate = DCMIPP_FRAME_RATE_ALL;
-  pPipeConfig.PixelPipePitch = 1600;
+  pPipeConfig.PixelPipePitch = 1280;
   pPipeConfig.PixelPackerFormat = DCMIPP_PIXEL_PACKER_FORMAT_RGB565_1;
   if (HAL_DCMIPP_PIPE_SetConfig(&hdcmipp, DCMIPP_PIPE1, &pPipeConfig) != HAL_OK)
   {
@@ -365,8 +365,8 @@ static void MX_LTDC_Init(void)
   {
     Error_Handler();
   }
-  pLayerCfg.WindowX0 = 0;
-  pLayerCfg.WindowX1 = 800;
+  pLayerCfg.WindowX0 = 80;
+  pLayerCfg.WindowX1 = 720;
   pLayerCfg.WindowY0 = 0;
   pLayerCfg.WindowY1 = 480;
   pLayerCfg.PixelFormat = LTDC_PIXEL_FORMAT_RGB565;
@@ -375,7 +375,7 @@ static void MX_LTDC_Init(void)
   pLayerCfg.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
   pLayerCfg.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
   pLayerCfg.FBStartAdress = 0;
-  pLayerCfg.ImageWidth = 800;
+  pLayerCfg.ImageWidth = 640;
   pLayerCfg.ImageHeight = 480;
   pLayerCfg.Backcolor.Blue = 255;
   pLayerCfg.Backcolor.Green = 0;
