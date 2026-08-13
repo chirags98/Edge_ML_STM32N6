@@ -66,6 +66,17 @@ static IMX335_Object_t IMX335Obj;
 static int32_t isp_gain;
 static int32_t isp_exposure;
 ISP_HandleTypeDef hcamera_isp;
+
+volatile uint32_t dbg_frame_count;
+volatile uint32_t dbg_vsync_count;
+
+volatile int32_t  dbg_readid_ret;
+volatile uint32_t dbg_id;
+volatile int32_t  dbg_imx335_init_ret;
+volatile int32_t  dbg_setfreq_ret;
+volatile int32_t  dbg_isp_init_ret;
+volatile int32_t  dbg_pipe_start_ret;
+volatile uint32_t dbg_i2c_err;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -134,6 +145,12 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_LTDC_Init();
+  MX_DCMIPP_Init();
+  MX_I2C1_Init();
+  MX_RAMCFG_Init();
+  SystemIsolation_Config();
+  /* USER CODE BEGIN 2 */
 
   HAL_GPIO_WritePin(NRST_GPIO_Port, NRST_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(PWR_EN_GPIO_Port, PWR_EN_Pin, GPIO_PIN_RESET);
@@ -141,18 +158,10 @@ int main(void)
   HAL_GPIO_WritePin(PWR_EN_GPIO_Port, PWR_EN_Pin, GPIO_PIN_SET);
   HAL_Delay(3);
 
-  MX_LTDC_Init();
-  MX_DCMIPP_Init();
-  MX_I2C1_Init();
-  MX_RAMCFG_Init();
-
   LL_MEM_EnableClock(LL_MEM_AXISRAM3);
   LL_MEM_EnableClock(LL_MEM_AXISRAM4);
   HAL_RAMCFG_EnableAXISRAM(&hramcfg_SRAM3);
   HAL_RAMCFG_EnableAXISRAM(&hramcfg_SRAM4);
-
-  SystemIsolation_Config();
-  /* USER CODE BEGIN 2 */
 
   DCMIPP_DownsizeTypeDef DownsizeConf = {0};
   DownsizeConf.HSize      = FRAME_WIDTH;
@@ -177,9 +186,11 @@ int main(void)
 
   uint32_t id;
   IMX335_RegisterBusIO(&IMX335Obj, &IOCtx);
-  IMX335_ReadID(&IMX335Obj, &id);                 /* check id == IMX335_CHIP_ID */
-  IMX335_Init(&IMX335Obj, IMX335_R2592_1944, IMX335_RAW_RGGB10);
-  IMX335_SetFrequency(&IMX335Obj, IMX335_INCK_24MHZ);
+  dbg_readid_ret      = IMX335_ReadID(&IMX335Obj, &id);                 /* check id == IMX335_CHIP_ID */
+  dbg_id              = id;
+  dbg_i2c_err         = HAL_I2C_GetError(&hi2c1);
+  dbg_imx335_init_ret = IMX335_Init(&IMX335Obj, IMX335_R2592_1944, IMX335_RAW_RGGB10);
+  dbg_setfreq_ret     = IMX335_SetFrequency(&IMX335Obj, IMX335_INCK_24MHZ);
 
   HAL_LTDC_SetAddress(&hltdc, BUFFER_ADDRESS, 0);  /* point the display layer at the shared buffer */
 
@@ -330,7 +341,6 @@ static void MX_LTDC_Init(void)
   /* USER CODE END LTDC_Init 0 */
 
   LTDC_LayerCfgTypeDef pLayerCfg = {0};
-  LTDC_LayerCfgTypeDef pLayerCfg1 = {0};
 
   /* USER CODE BEGIN LTDC_Init 1 */
 
@@ -371,25 +381,6 @@ static void MX_LTDC_Init(void)
   pLayerCfg.Backcolor.Green = 0;
   pLayerCfg.Backcolor.Red = 0;
   if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  pLayerCfg1.WindowX0 = 0;
-  pLayerCfg1.WindowX1 = 800;
-  pLayerCfg1.WindowY0 = 0;
-  pLayerCfg1.WindowY1 = 480;
-  pLayerCfg1.PixelFormat = LTDC_PIXEL_FORMAT_RGB565;
-  pLayerCfg1.Alpha = 255;
-  pLayerCfg1.Alpha0 = 0;
-  pLayerCfg1.BlendingFactor1 = LTDC_BLENDING_FACTOR1_CA;
-  pLayerCfg1.BlendingFactor2 = LTDC_BLENDING_FACTOR2_CA;
-  pLayerCfg1.FBStartAdress = 0;
-  pLayerCfg1.ImageWidth = 800;
-  pLayerCfg1.ImageHeight = 480;
-  pLayerCfg1.Backcolor.Blue = 255;
-  pLayerCfg1.Backcolor.Green = 0;
-  pLayerCfg1.Backcolor.Red = 0;
-  if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg1, 1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -643,9 +634,12 @@ static ISP_StatusTypeDef GetSensorExposureHelper(uint32_t Instance, int32_t *Exp
 
 void HAL_DCMIPP_PIPE_FrameEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t Pipe)
 {
-  /* optional frame counter */
+  UNUSED(hdcmipp);
+  if (Pipe == DCMIPP_PIPE1)
+  {
+    dbg_frame_count++;
+  }
 }
-
 void HAL_DCMIPP_PIPE_VsyncEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t Pipe)
 {
   UNUSED(hdcmipp);
