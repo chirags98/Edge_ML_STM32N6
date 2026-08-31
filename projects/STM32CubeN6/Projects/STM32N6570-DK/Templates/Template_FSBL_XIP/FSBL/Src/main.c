@@ -42,6 +42,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+XSPI_HandleTypeDef hxspi1;
 XSPI_HandleTypeDef hxspi2;
 
 /* USER CODE BEGIN PV */
@@ -52,6 +53,7 @@ XSPI_HandleTypeDef hxspi2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_XSPI2_Init(void);
+static void MX_XSPI1_Init(void);
 /* USER CODE BEGIN PFP */
 void Error_Handler(void);
 #ifndef NO_OTP_FUSE
@@ -105,6 +107,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_XSPI2_Init();
+  MX_XSPI1_Init();
   /* USER CODE BEGIN 2 */
   /* Initialise the serial memory */
   MX_EXTMEM_Init();
@@ -257,6 +260,57 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief XSPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_XSPI1_Init(void)
+{
+
+  /* USER CODE BEGIN XSPI1_Init 0 */
+
+  /* USER CODE END XSPI1_Init 0 */
+
+  XSPIM_CfgTypeDef sXspiManagerCfg = {0};
+
+  /* USER CODE BEGIN XSPI1_Init 1 */
+
+  /* USER CODE END XSPI1_Init 1 */
+  /* XSPI1 parameter configuration*/
+  hxspi1.Instance = XSPI1;
+  hxspi1.Init.FifoThresholdByte = 8;
+  hxspi1.Init.MemoryMode = HAL_XSPI_SINGLE_MEM;
+  hxspi1.Init.MemoryType = HAL_XSPI_MEMTYPE_APMEM_16BITS;
+  hxspi1.Init.MemorySize = HAL_XSPI_SIZE_256MB;
+  hxspi1.Init.ChipSelectHighTimeCycle = 5;
+  hxspi1.Init.FreeRunningClock = HAL_XSPI_FREERUNCLK_DISABLE;
+  hxspi1.Init.ClockMode = HAL_XSPI_CLOCK_MODE_0;
+  hxspi1.Init.WrapSize = HAL_XSPI_WRAP_NOT_SUPPORTED;
+  hxspi1.Init.ClockPrescaler = 3;
+  hxspi1.Init.SampleShifting = HAL_XSPI_SAMPLE_SHIFT_NONE;
+  hxspi1.Init.DelayHoldQuarterCycle = HAL_XSPI_DHQC_ENABLE;
+  hxspi1.Init.ChipSelectBoundary = HAL_XSPI_BONDARYOF_16KB;
+  hxspi1.Init.MaxTran = 0;
+  hxspi1.Init.Refresh = 129;
+  hxspi1.Init.MemorySelect = HAL_XSPI_CSSEL_NCS1;
+  if (HAL_XSPI_Init(&hxspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sXspiManagerCfg.nCSOverride = HAL_XSPI_CSSEL_OVR_NCS1;
+  sXspiManagerCfg.IOPort = HAL_XSPIM_IOPORT_1;
+  sXspiManagerCfg.Req2AckTime = 1;
+  if (HAL_XSPIM_Config(&hxspi1, &sXspiManagerCfg, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN XSPI1_Init 2 */
+
+  /* USER CODE END XSPI1_Init 2 */
+
+}
+
+/**
   * @brief XSPI2 Initialization Function
   * @param None
   * @retval None
@@ -319,6 +373,8 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOP_CLK_ENABLE();
+  __HAL_RCC_GPIOO_CLK_ENABLE();
   __HAL_RCC_GPION_CLK_ENABLE();
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
