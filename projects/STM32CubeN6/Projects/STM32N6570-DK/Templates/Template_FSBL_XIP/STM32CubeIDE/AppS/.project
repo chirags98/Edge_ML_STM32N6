@@ -152,6 +152,11 @@
 			<locationURI>PARENT-6-PROJECT_LOC/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_uart_ex.c</locationURI>
 		</link>
 		<link>
+			<name>Drivers/STM32N6xx_HAL_Driver/stm32n6xx_hal_xspi.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_xspi.c</locationURI>
+		</link>
+		<link>
 			<name>Middlewares/STM32_ISP/isp_algo.c</name>
 			<type>1</type>
 			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/ST/STM32_ISP_Library/isp/Src/isp_algo.c</locationURI>
@@ -175,6 +180,16 @@
 			<name>Drivers/BSP/STM32N6570-DK/stm32n6570_discovery_bus.c</name>
 			<type>1</type>
 			<locationURI>PARENT-6-PROJECT_LOC/Drivers/BSP/STM32N6570-DK/stm32n6570_discovery_bus.c</locationURI>
+		</link>
+		<link>
+			<name>Drivers/BSP/STM32N6570-DK/stm32n6570_discovery_xspi.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Drivers/BSP/STM32N6570-DK/stm32n6570_discovery_xspi.c</locationURI>
+		</link>
+		<link>
+			<name>Drivers/BSP/Components/aps256xx/aps256xx.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Drivers/BSP/Components/aps256xx/aps256xx.c</locationURI>
 		</link>
 		<link>
 			<name>Middlewares/STM32_ISP/evision/libn6-evision-awb_gcc.a</name>

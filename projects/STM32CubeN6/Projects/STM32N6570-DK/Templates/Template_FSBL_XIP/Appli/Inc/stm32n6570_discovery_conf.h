@@ -29,6 +29,10 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include "stm32n6xx_hal.h"
 
+/* AppS owns PSRAM only. NOR stays mapped by FSBL for XIP — do not compile NOR BSP. */
+#define USE_NOR_MEMORY_MX66UW1G45G           0
+#define USE_RAM_MEMORY_APS256XX              1
+
 /* STM32N6570_DK revisions defines */
 #define STM32N6570_DK_A01 0
 #define STM32N6570_DK_B01 1

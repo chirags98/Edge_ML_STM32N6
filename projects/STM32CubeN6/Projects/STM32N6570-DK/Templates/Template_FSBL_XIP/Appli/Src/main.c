@@ -24,6 +24,7 @@
 #include "isp_api.h"
 #include "imx335_E27_isp_param_conf.h"
 #include "imx335.h"
+#include "stm32n6570_discovery_xspi.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,7 +38,7 @@
 #define FRAME_WIDTH        640
 #define FRAME_HEIGHT       480
 #define FRAME_BUFFER_SIZE  (FRAME_WIDTH * FRAME_HEIGHT * 2)   /* RGB565 = 2 bytes/pixel */
-#define BUFFER_ADDRESS     0x34200000   /* must fall inside AXISRAM3/4 range */
+#define BUFFER_ADDRESS     0x90000000UL /* PSRAM (XSPI1), not AXISRAM */
 
 #define DIV_FACTOR(SRC, DST) (((uint32_t)((1024 * DST) / SRC)) > 1023 ? 1023 : ((uint32_t)((1024 * DST) / SRC)))
 #define DOWNSCALE_RATIO(SRC, DST) (((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192) < 8192) ? 8192 : \
@@ -60,6 +61,8 @@ LTDC_HandleTypeDef hltdc;
 
 RAMCFG_HandleTypeDef hramcfg_SRAM3;
 RAMCFG_HandleTypeDef hramcfg_SRAM4;
+
+XSPI_HandleTypeDef hxspi1;
 
 /* USER CODE BEGIN PV */
 static IMX335_Object_t IMX335Obj;
@@ -86,6 +89,7 @@ static void MX_LTDC_Init(void);
 static void MX_DCMIPP_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RAMCFG_Init(void);
+static void MX_XSPI1_Init(void);
 static void SystemIsolation_Config(void);
 /* USER CODE BEGIN PFP */
 static int32_t YourI2C1_Init(void);
@@ -151,6 +155,39 @@ int main(void)
   MX_RAMCFG_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
+
+  /* PSRAM: do not call BSP_XSPI_RAM_Init() — its MSP resets XSPIM and kills XIP. */
+  {
+    MX_XSPI_InitTypeDef xspi_init = {0};
+    volatile uint32_t *psram;
+
+    xspi_init.ClockPrescaler = 3;
+    xspi_init.MemorySize     = HAL_XSPI_SIZE_256MB;
+    xspi_init.SampleShifting = HAL_XSPI_SAMPLE_SHIFT_NONE;
+
+    if (MX_XSPI_RAM_Init(&hxspi_ram[0], &xspi_init) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    (void)APS256XX_WriteReg(&hxspi_ram[0], 0, 0x30); /* read latency  */
+    (void)APS256XX_WriteReg(&hxspi_ram[0], 4, 0x20); /* write latency */
+    (void)APS256XX_WriteReg(&hxspi_ram[0], 8, 0x40); /* x16 mode      */
+    (void)HAL_XSPI_SetClockPrescaler(&hxspi_ram[0], 0);
+
+    if (BSP_XSPI_RAM_EnableMemoryMappedMode(0) != BSP_ERROR_NONE)
+    {
+      Error_Handler();
+    }
+
+    psram = (volatile uint32_t *)BUFFER_ADDRESS;
+    psram[0] = 0xA5A5A5A5UL;
+    psram[1] = 0x5A5A5A5AUL;
+    if ((psram[0] != 0xA5A5A5A5UL) || (psram[1] != 0x5A5A5A5AUL))
+    {
+      Error_Handler(); /* PSRAM not mapped — do not start the camera */
+    }
+  }
 
   HAL_GPIO_WritePin(NRST_GPIO_Port, NRST_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(PWR_EN_GPIO_Port, PWR_EN_Pin, GPIO_PIN_RESET);
@@ -542,6 +579,57 @@ static void MX_RAMCFG_Init(void)
 }
 
 /**
+  * @brief XSPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_XSPI1_Init(void)
+{
+
+  /* USER CODE BEGIN XSPI1_Init 0 */
+
+  /* USER CODE END XSPI1_Init 0 */
+
+  XSPIM_CfgTypeDef sXspiManagerCfg = {0};
+
+  /* USER CODE BEGIN XSPI1_Init 1 */
+
+  /* USER CODE END XSPI1_Init 1 */
+  /* XSPI1 parameter configuration*/
+  hxspi1.Instance = XSPI1;
+  hxspi1.Init.FifoThresholdByte = 8;
+  hxspi1.Init.MemoryMode = HAL_XSPI_SINGLE_MEM;
+  hxspi1.Init.MemoryType = HAL_XSPI_MEMTYPE_APMEM_16BITS;
+  hxspi1.Init.MemorySize = HAL_XSPI_SIZE_256MB;
+  hxspi1.Init.ChipSelectHighTimeCycle = 5;
+  hxspi1.Init.FreeRunningClock = HAL_XSPI_FREERUNCLK_DISABLE;
+  hxspi1.Init.ClockMode = HAL_XSPI_CLOCK_MODE_0;
+  hxspi1.Init.WrapSize = HAL_XSPI_WRAP_NOT_SUPPORTED;
+  hxspi1.Init.ClockPrescaler = 3;
+  hxspi1.Init.SampleShifting = HAL_XSPI_SAMPLE_SHIFT_NONE;
+  hxspi1.Init.DelayHoldQuarterCycle = HAL_XSPI_DHQC_ENABLE;
+  hxspi1.Init.ChipSelectBoundary = HAL_XSPI_BONDARYOF_16KB;
+  hxspi1.Init.MaxTran = 0;
+  hxspi1.Init.Refresh = 129;
+  hxspi1.Init.MemorySelect = HAL_XSPI_CSSEL_NCS1;
+  if (HAL_XSPI_Init(&hxspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sXspiManagerCfg.nCSOverride = HAL_XSPI_CSSEL_OVR_NCS1;
+  sXspiManagerCfg.IOPort = HAL_XSPIM_IOPORT_1;
+  sXspiManagerCfg.Req2AckTime = 1;
+  if (HAL_XSPIM_Config(&hxspi1, &sXspiManagerCfg, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN XSPI1_Init 2 */
+
+  /* USER CODE END XSPI1_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -560,6 +648,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOP_CLK_ENABLE();
+  __HAL_RCC_GPIOO_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 

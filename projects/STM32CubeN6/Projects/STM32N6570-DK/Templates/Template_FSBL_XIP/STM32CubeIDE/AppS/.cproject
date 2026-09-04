@@ -49,6 +49,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Template_FSBL_XIP/STM32CubeIDE/AppS/Includes}&quot;"/>
 									<listOptionValue builtIn="false" value="../../../Appli/Inc"/>
 									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Drivers\BSP\Components\Common&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Drivers\BSP\Components\aps256xx&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Drivers\BSP\Components\imx335&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Drivers\BSP\Components\rk050hr18&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Drivers\BSP\STM32N6570-DK&quot;"/>
