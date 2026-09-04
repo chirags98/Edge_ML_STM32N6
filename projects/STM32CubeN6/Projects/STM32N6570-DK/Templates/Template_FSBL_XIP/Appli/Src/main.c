@@ -44,6 +44,11 @@
 #define DOWNSCALE_RATIO(SRC, DST) (((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192) < 8192) ? 8192 : \
                                    ((((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192)) > 65535) ? 65535 : \
                                    ((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192))))
+
+#define NN_INPUT_WIDTH   128
+#define NN_INPUT_HEIGHT  128
+#define NN_INPUT_CH      3
+#define NN_INPUT_SIZE    (NN_INPUT_WIDTH * NN_INPUT_HEIGHT * NN_INPUT_CH)  /* 49152 */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -80,6 +85,12 @@ volatile int32_t  dbg_setfreq_ret;
 volatile int32_t  dbg_isp_init_ret;
 volatile int32_t  dbg_pipe_start_ret;
 volatile uint32_t dbg_i2c_err;
+
+__attribute__((aligned(32)))
+static uint8_t nn_input_buffer[NN_INPUT_SIZE];
+volatile uint32_t pipe2_frame_ready;
+volatile uint32_t dbg_pipe2_frame_count;
+volatile int32_t  dbg_pipe2_start_ret;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -141,6 +152,7 @@ int main(void)
   /* USER CODE BEGIN Init */
   /* Initialize LED1 */
   BSP_LED_Init(LED_GREEN);
+  BSP_LED_Init(LED_RED);
   /* USER CODE END Init */
 
   /* USER CODE BEGIN SysInit */
@@ -210,6 +222,16 @@ int main(void)
   HAL_DCMIPP_PIPE_SetDownsizeConfig(&hdcmipp, DCMIPP_PIPE1, &DownsizeConf);
   HAL_DCMIPP_PIPE_EnableDownsize(&hdcmipp, DCMIPP_PIPE1);
 
+  DCMIPP_DownsizeTypeDef Pipe2Downsize = {0};
+  Pipe2Downsize.HSize      = NN_INPUT_WIDTH;
+  Pipe2Downsize.VSize      = NN_INPUT_HEIGHT;
+  Pipe2Downsize.HRatio     = DOWNSCALE_RATIO(IMX335_WIDTH, NN_INPUT_WIDTH);
+  Pipe2Downsize.VRatio     = DOWNSCALE_RATIO(IMX335_HEIGHT, NN_INPUT_HEIGHT);
+  Pipe2Downsize.HDivFactor = DIV_FACTOR(IMX335_WIDTH, NN_INPUT_WIDTH);
+  Pipe2Downsize.VDivFactor = DIV_FACTOR(IMX335_HEIGHT, NN_INPUT_HEIGHT);
+  HAL_DCMIPP_PIPE_SetDownsizeConfig(&hdcmipp, DCMIPP_PIPE2, &Pipe2Downsize);
+  HAL_DCMIPP_PIPE_EnableDownsize(&hdcmipp, DCMIPP_PIPE2);
+
   HAL_GPIO_WritePin(LCD_ON_OFF_GPIO_Port, LCD_ON_OFF_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_SET);
 
@@ -255,6 +277,20 @@ int main(void)
 	{
 		BSP_LED_Toggle(LED_RED);   /* or your own error indicator */
 	}
+
+	pipe2_frame_ready = 0;
+	dbg_pipe2_start_ret = HAL_DCMIPP_CSI_PIPE_Start
+	  (&hdcmipp,
+	  DCMIPP_PIPE2,
+	  DCMIPP_VIRTUAL_CHANNEL0,
+	  (uint32_t)nn_input_buffer,
+	  DCMIPP_MODE_SNAPSHOT);
+
+	while (pipe2_frame_ready == 0)
+	{
+	}
+	SCB_CleanInvalidateDCache_by_Addr(nn_input_buffer, NN_INPUT_SIZE);
+	BSP_LED_Toggle(LED_GREEN);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -308,6 +344,19 @@ static void MX_DCMIPP_Init(void)
     Error_Handler();
   }
   if (HAL_DCMIPP_CSI_SetVCConfig(&hdcmipp, 0U, DCMIPP_CSI_DT_BPP10) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Pipe 2 Config
+  */
+  if (HAL_DCMIPP_CSI_PIPE_SetConfig(&hdcmipp, DCMIPP_PIPE2, &pCSI_PipeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  pPipeConfig.PixelPipePitch = 384;
+  pPipeConfig.PixelPackerFormat = DCMIPP_PIXEL_PACKER_FORMAT_RGB888_YUV444_1;
+  if (HAL_DCMIPP_PIPE_SetConfig(&hdcmipp, DCMIPP_PIPE2, &pPipeConfig) != HAL_OK)
   {
     Error_Handler();
   }
@@ -760,6 +809,12 @@ void HAL_DCMIPP_PIPE_FrameEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t 
   if (Pipe == DCMIPP_PIPE1)
   {
     dbg_frame_count++;
+  }
+
+  if (Pipe == DCMIPP_PIPE2)
+  {
+    pipe2_frame_ready = 1;
+    dbg_pipe2_frame_count++;
   }
 }
 void HAL_DCMIPP_PIPE_VsyncEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t Pipe)
