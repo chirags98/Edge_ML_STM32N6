@@ -38,9 +38,7 @@
 #define FRAME_WIDTH        640
 #define FRAME_HEIGHT       480
 #define FRAME_BUFFER_SIZE  (FRAME_WIDTH * FRAME_HEIGHT * 2)   /* RGB565 = 2 bytes/pixel */
-#define BUFFER_ADDRESS     0x90000000UL /* PSRAM (XSPI1), not AXISRAM */
-/* Pipe 1 dump so CSI stays alive without overwriting the LCD buffer */
-#define PIPE1_DUMP_ADDRESS (BUFFER_ADDRESS + FRAME_BUFFER_SIZE)
+#define BUFFER_ADDRESS     0x90000000UL /* PSRAM (XSPI1): Pipe 1 / LCD */
 
 #define DIV_FACTOR(SRC, DST) (((uint32_t)((1024 * DST) / SRC)) > 1023 ? 1023 : ((uint32_t)((1024 * DST) / SRC)))
 #define DOWNSCALE_RATIO(SRC, DST) (((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192) < 8192) ? 8192 : \
@@ -116,7 +114,6 @@ static ISP_StatusTypeDef SetSensorGainHelper(uint32_t Instance, int32_t Gain);
 static ISP_StatusTypeDef GetSensorGainHelper(uint32_t Instance, int32_t *Gain);
 static ISP_StatusTypeDef SetSensorExposureHelper(uint32_t Instance, int32_t Exposure);
 static ISP_StatusTypeDef GetSensorExposureHelper(uint32_t Instance, int32_t *Exposure);
-static void Pipe2_ShowOnLcd(const uint8_t *rgb888);
 void Error_Handler(void);
 
 /* USER CODE END PFP */
@@ -278,14 +275,7 @@ int main(void)
   dbg_imx335_init_ret = IMX335_Init(&IMX335Obj, IMX335_R2592_1944, IMX335_RAW_RGGB10);
   dbg_setfreq_ret     = IMX335_SetFrequency(&IMX335Obj, IMX335_INCK_24MHZ);
 
-  HAL_LTDC_SetAddress(&hltdc, BUFFER_ADDRESS, 0);  /* LCD reads this; Pipe 2 blit writes here */
-  {
-    uint16_t *lcd = (uint16_t *)BUFFER_ADDRESS;
-    for (uint32_t i = 0; i < (FRAME_WIDTH * FRAME_HEIGHT); i++)
-    {
-      lcd[i] = 0x0000; /* black so leftover Pipe 1 / PSRAM garbage is not shown */
-    }
-  }
+  HAL_LTDC_SetAddress(&hltdc, BUFFER_ADDRESS, 0);
 
   ISP_AppliHelpersTypeDef appliHelpers = {0};
   appliHelpers.GetSensorInfo     = GetSensorInfoHelper;
@@ -299,8 +289,7 @@ int main(void)
     Error_Handler();
   }
 
-  /* Keep Pipe 1 running so CSI VC0 stays up. Dump frames off-screen. */
-  HAL_DCMIPP_CSI_PIPE_Start(&hdcmipp, DCMIPP_PIPE1, DCMIPP_VIRTUAL_CHANNEL0, PIPE1_DUMP_ADDRESS, DCMIPP_MODE_CONTINUOUS);
+  HAL_DCMIPP_CSI_PIPE_Start(&hdcmipp, DCMIPP_PIPE1, DCMIPP_VIRTUAL_CHANNEL0, BUFFER_ADDRESS, DCMIPP_MODE_CONTINUOUS);
   ISP_Start(&hcamera_isp);
   /* USER CODE END 2 */
 
@@ -327,7 +316,6 @@ int main(void)
 	{
 	}
 	SCB_InvalidateDCache_by_Addr(nn_input_buffer, NN_INPUT_SIZE);
-	Pipe2_ShowOnLcd(nn_input_buffer);
 	BSP_LED_Toggle(LED_GREEN);
     /* USER CODE END WHILE */
 
@@ -839,31 +827,6 @@ static ISP_StatusTypeDef GetSensorExposureHelper(uint32_t Instance, int32_t *Exp
   UNUSED(Instance);
   *Exposure = isp_exposure;
   return ISP_OK;
-}
-
-static void Pipe2_ShowOnLcd(const uint8_t *rgb888)
-{
-  uint16_t *dst = (uint16_t *)BUFFER_ADDRESS;
-  const uint32_t scale = 3;
-  const uint32_t out_w = NN_INPUT_WIDTH * scale;  /* 384 */
-  const uint32_t out_h = NN_INPUT_HEIGHT * scale; /* 384 */
-  const uint32_t x0 = (FRAME_WIDTH  - out_w) / 2;
-  const uint32_t y0 = (FRAME_HEIGHT - out_h) / 2;
-
-  for (uint32_t y = 0; y < out_h; y++)
-  {
-    const uint8_t *src_row = rgb888 + ((y / scale) * NN_INPUT_WIDTH * NN_INPUT_CH);
-    uint16_t *dst_row = dst + (y0 + y) * FRAME_WIDTH + x0;
-
-    for (uint32_t x = 0; x < out_w; x++)
-    {
-      const uint8_t *p = src_row + (x / scale) * NN_INPUT_CH;
-      uint8_t r = p[0];
-      uint8_t g = p[1];
-      uint8_t b = p[2];
-      dst_row[x] = (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
-    }
-  }
 }
 
 void HAL_DCMIPP_PIPE_FrameEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t Pipe)
