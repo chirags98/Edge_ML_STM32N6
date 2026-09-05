@@ -25,6 +25,9 @@
 #include "imx335_E27_isp_param_conf.h"
 #include "imx335.h"
 #include "stm32n6570_discovery_xspi.h"
+
+#include "stai.h"
+#include "stai_network.h"
 #include "npu_cache.h"
 /* USER CODE END Includes */
 
@@ -92,6 +95,12 @@ static uint8_t nn_input_buffer[NN_INPUT_SIZE];
 volatile uint32_t pipe2_frame_ready;
 volatile uint32_t dbg_pipe2_frame_count;
 volatile int32_t  dbg_pipe2_start_ret;
+
+STAI_NETWORK_CONTEXT_DECLARE(network_context, STAI_NETWORK_CONTEXT_SIZE);
+stai_ptr nn_in;
+stai_ptr nn_out[STAI_NETWORK_OUT_NUM];
+volatile int32_t dbg_stai_rt_init;
+volatile int32_t dbg_stai_net_init;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -217,7 +226,17 @@ int main(void)
   __HAL_RCC_NPU_FORCE_RESET();
   __HAL_RCC_NPU_RELEASE_RESET();
 
-  npu_cache_enable();
+  npu_cache_enable();   /* CACHEAXI already inited by MX_; this just enables it */
+
+  dbg_stai_rt_init  = stai_runtime_init();
+  dbg_stai_net_init = stai_network_init(network_context);
+  if (dbg_stai_net_init != STAI_SUCCESS)
+  {
+    Error_Handler();
+  }
+
+  stai_size n_in = 1;
+  stai_network_get_inputs(network_context, &nn_in, &n_in);
 
   DCMIPP_DownsizeTypeDef DownsizeConf = {0};
   DownsizeConf.HSize      = FRAME_WIDTH;
