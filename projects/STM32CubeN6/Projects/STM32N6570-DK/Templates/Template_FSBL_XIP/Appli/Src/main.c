@@ -57,6 +57,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+CACHEAXI_HandleTypeDef hcacheaxi;
 
 DCMIPP_HandleTypeDef hdcmipp;
 
@@ -64,8 +65,8 @@ I2C_HandleTypeDef hi2c1;
 
 LTDC_HandleTypeDef hltdc;
 
-RAMCFG_HandleTypeDef hramcfg_SRAM3;
 RAMCFG_HandleTypeDef hramcfg_SRAM4;
+RAMCFG_HandleTypeDef hramcfg_SRAM5;
 
 XSPI_HandleTypeDef hxspi1;
 
@@ -101,6 +102,7 @@ static void MX_DCMIPP_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RAMCFG_Init(void);
 static void MX_XSPI1_Init(void);
+static void MX_CACHEAXI_Init(void);
 static void SystemIsolation_Config(void);
 /* USER CODE BEGIN PFP */
 static int32_t YourI2C1_Init(void);
@@ -165,6 +167,7 @@ int main(void)
   MX_DCMIPP_Init();
   MX_I2C1_Init();
   MX_RAMCFG_Init();
+  MX_CACHEAXI_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
 
@@ -207,10 +210,14 @@ int main(void)
   HAL_GPIO_WritePin(PWR_EN_GPIO_Port, PWR_EN_Pin, GPIO_PIN_SET);
   HAL_Delay(3);
 
-  LL_MEM_EnableClock(LL_MEM_AXISRAM3);
   LL_MEM_EnableClock(LL_MEM_AXISRAM4);
-  HAL_RAMCFG_EnableAXISRAM(&hramcfg_SRAM3);
+  LL_MEM_EnableClock(LL_MEM_AXISRAM5);
   HAL_RAMCFG_EnableAXISRAM(&hramcfg_SRAM4);
+  HAL_RAMCFG_EnableAXISRAM(&hramcfg_SRAM5);
+
+  __HAL_RCC_NPU_CLK_ENABLE();
+  __HAL_RCC_NPU_FORCE_RESET();
+  __HAL_RCC_NPU_RELEASE_RESET();
 
   DCMIPP_DownsizeTypeDef DownsizeConf = {0};
   DownsizeConf.HSize      = FRAME_WIDTH;
@@ -322,6 +329,32 @@ int main(void)
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
+}
+
+/**
+  * @brief CACHEAXI Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CACHEAXI_Init(void)
+{
+
+  /* USER CODE BEGIN CACHEAXI_Init 0 */
+
+  /* USER CODE END CACHEAXI_Init 0 */
+
+  /* USER CODE BEGIN CACHEAXI_Init 1 */
+
+  /* USER CODE END CACHEAXI_Init 1 */
+  hcacheaxi.Instance = CACHEAXI;
+  if (HAL_CACHEAXI_Init(&hcacheaxi) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CACHEAXI_Init 2 */
+
+  /* USER CODE END CACHEAXI_Init 2 */
+
 }
 
 /**
@@ -527,18 +560,18 @@ static void MX_RAMCFG_Init(void)
 
   /* USER CODE END RAMCFG_Init 1 */
 
-  /** Initialize RAMCFG SRAM3
-  */
-  hramcfg_SRAM3.Instance = RAMCFG_SRAM3_AXI;
-  if (HAL_RAMCFG_Init(&hramcfg_SRAM3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
   /** Initialize RAMCFG SRAM4
   */
   hramcfg_SRAM4.Instance = RAMCFG_SRAM4_AXI;
   if (HAL_RAMCFG_Init(&hramcfg_SRAM4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Initialize RAMCFG SRAM5
+  */
+  hramcfg_SRAM5.Instance = RAMCFG_SRAM5_AXI;
+  if (HAL_RAMCFG_Init(&hramcfg_SRAM5) != HAL_OK)
   {
     Error_Handler();
   }
@@ -572,9 +605,10 @@ static void MX_RAMCFG_Init(void)
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
 
   /*RISUP configuration*/
-  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_XSPI1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_DCMIPP , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_NPU , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_XSPI1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
 
   /* RIF-Aware IPs Config */
 
@@ -648,7 +682,7 @@ static void MX_RAMCFG_Init(void)
 
   /* USER CODE END RIF_Init 1 */
   /* USER CODE BEGIN RIF_Init 2 */
-
+  HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_NPU, &RIMC_master);
   /* USER CODE END RIF_Init 2 */
 
 }
