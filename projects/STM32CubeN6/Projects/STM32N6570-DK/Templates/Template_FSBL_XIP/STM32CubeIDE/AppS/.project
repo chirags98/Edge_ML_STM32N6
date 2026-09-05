@@ -32,6 +32,31 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>Model</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/STM32N6xx</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>Model/network.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Model/network.c</locationURI>
+		</link>
+		<link>
+			<name>Model/stai_network.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Model/stai_network.c</locationURI>
+		</link>
+		<link>
 			<name>Src/main.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/Appli/Src/main.c</locationURI>
@@ -162,6 +187,16 @@
 			<locationURI>PARENT-6-PROJECT_LOC/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_xspi.c</locationURI>
 		</link>
 		<link>
+			<name>Middlewares/STM32N6xx/mcu_cache.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/Devices/STM32N6xx/mcu_cache.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/STM32N6xx/npu_cache.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/Devices/STM32N6xx/npu_cache.c</locationURI>
+		</link>
+		<link>
 			<name>Middlewares/STM32_ISP/isp_algo.c</name>
 			<type>1</type>
 			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/ST/STM32_ISP_Library/isp/Src/isp_algo.c</locationURI>
@@ -175,6 +210,56 @@
 			<name>Middlewares/STM32_ISP/isp_services.c</name>
 			<type>1</type>
 			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/ST/STM32_ISP_Library/isp/Src/isp_services.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_aton.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_aton.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_aton_cipher.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_aton_cipher.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_aton_lib.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_aton_lib.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_aton_lib_sw_operators.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_aton_lib_sw_operators.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_aton_rt_main.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_aton_rt_main.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_aton_runtime.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_aton_runtime.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_aton_stai_internal.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_aton_stai_internal.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_aton_util.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_aton_util.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_sw_float.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_sw_float.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ll_aton/ll_sw_integer.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_sw_integer.c</locationURI>
 		</link>
 		<link>
 			<name>Drivers/BSP/STM32N6570-DK/stm32n6570_discovery.c</name>

@@ -25,6 +25,7 @@
 #include "imx335_E27_isp_param_conf.h"
 #include "imx335.h"
 #include "stm32n6570_discovery_xspi.h"
+#include "npu_cache.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,7 +58,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-CACHEAXI_HandleTypeDef hcacheaxi;
 
 DCMIPP_HandleTypeDef hdcmipp;
 
@@ -102,7 +102,6 @@ static void MX_DCMIPP_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RAMCFG_Init(void);
 static void MX_XSPI1_Init(void);
-static void MX_CACHEAXI_Init(void);
 static void SystemIsolation_Config(void);
 /* USER CODE BEGIN PFP */
 static int32_t YourI2C1_Init(void);
@@ -167,7 +166,6 @@ int main(void)
   MX_DCMIPP_Init();
   MX_I2C1_Init();
   MX_RAMCFG_Init();
-  MX_CACHEAXI_Init();
   SystemIsolation_Config();
   /* USER CODE BEGIN 2 */
 
@@ -218,6 +216,8 @@ int main(void)
   __HAL_RCC_NPU_CLK_ENABLE();
   __HAL_RCC_NPU_FORCE_RESET();
   __HAL_RCC_NPU_RELEASE_RESET();
+
+  npu_cache_enable();
 
   DCMIPP_DownsizeTypeDef DownsizeConf = {0};
   DownsizeConf.HSize      = FRAME_WIDTH;
@@ -329,32 +329,6 @@ int main(void)
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
-}
-
-/**
-  * @brief CACHEAXI Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_CACHEAXI_Init(void)
-{
-
-  /* USER CODE BEGIN CACHEAXI_Init 0 */
-
-  /* USER CODE END CACHEAXI_Init 0 */
-
-  /* USER CODE BEGIN CACHEAXI_Init 1 */
-
-  /* USER CODE END CACHEAXI_Init 1 */
-  hcacheaxi.Instance = CACHEAXI;
-  if (HAL_CACHEAXI_Init(&hcacheaxi) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN CACHEAXI_Init 2 */
-
-  /* USER CODE END CACHEAXI_Init 2 */
-
 }
 
 /**
@@ -605,10 +579,10 @@ static void MX_RAMCFG_Init(void)
   HAL_RIF_RIMC_ConfigMasterAttributes(RIF_MASTER_INDEX_LTDC1, &RIMC_master);
 
   /*RISUP configuration*/
+  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_XSPI1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_DCMIPP , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_LTDCL1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
   HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_NPU , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
-  HAL_RIF_RISC_SetSlaveSecureAttributes(RIF_RISC_PERIPH_INDEX_XSPI1 , RIF_ATTRIBUTE_SEC | RIF_ATTRIBUTE_PRIV);
 
   /* RIF-Aware IPs Config */
 
@@ -885,6 +859,21 @@ void HAL_DCMIPP_PIPE_VsyncEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t 
     ISP_IncMainFrameId(&hcamera_isp);
     ISP_GatherStatistics(&hcamera_isp);
   }
+}
+
+void npu_cache_enable_clocks_and_reset(void)
+{
+  __HAL_RCC_CACHEAXIRAM_MEM_CLK_ENABLE();
+  __HAL_RCC_CACHEAXI_CLK_ENABLE();
+  __HAL_RCC_CACHEAXI_FORCE_RESET();
+  __HAL_RCC_CACHEAXI_RELEASE_RESET();
+}
+
+void npu_cache_disable_clocks_and_reset(void)
+{
+  __HAL_RCC_CACHEAXIRAM_MEM_CLK_DISABLE();
+  __HAL_RCC_CACHEAXI_CLK_DISABLE();
+  __HAL_RCC_CACHEAXI_FORCE_RESET();
 }
 /* USER CODE END 4 */
 
