@@ -91,7 +91,7 @@ volatile int32_t  dbg_pipe_start_ret;
 volatile uint32_t dbg_i2c_err;
 
 __attribute__((aligned(32)))
-static uint8_t nn_input_buffer[NN_INPUT_SIZE];
+//static uint8_t nn_input_buffer[NN_INPUT_SIZE];
 volatile uint32_t pipe2_frame_ready;
 volatile uint32_t dbg_pipe2_frame_count;
 volatile int32_t  dbg_pipe2_start_ret;
@@ -101,6 +101,9 @@ stai_ptr nn_in;
 stai_ptr nn_out[STAI_NETWORK_OUT_NUM];
 volatile int32_t dbg_stai_rt_init;
 volatile int32_t dbg_stai_net_init;
+
+volatile int32_t  dbg_infer_ret;
+volatile uint32_t dbg_infer_ms;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -238,6 +241,15 @@ int main(void)
   stai_size n_in = 1;
   stai_network_get_inputs(network_context, &nn_in, &n_in);
 
+  stai_network_info info;
+  stai_size n_out = STAI_NETWORK_OUT_NUM;
+  int32_t nn_out_len[STAI_NETWORK_OUT_NUM];
+
+  stai_network_get_info(network_context, &info);
+  stai_network_get_outputs(network_context, nn_out, &n_out);
+  for (int i = 0; i < (int)n_out; i++)
+    nn_out_len[i] = info.outputs[i].size_bytes;
+
   DCMIPP_DownsizeTypeDef DownsizeConf = {0};
   DownsizeConf.HSize      = FRAME_WIDTH;
   DownsizeConf.VSize      = FRAME_HEIGHT;
@@ -329,19 +341,23 @@ int main(void)
 	}
 
 	pipe2_frame_ready = 0;
-	/* Flush any cached CPU writes before DMA; after DMA invalidate only (do not Clean). */
-	SCB_CleanInvalidateDCache_by_Addr(nn_input_buffer, NN_INPUT_SIZE);
-	dbg_pipe2_start_ret = HAL_DCMIPP_CSI_PIPE_Start
-	  (&hdcmipp,
-	  DCMIPP_PIPE2,
-	  DCMIPP_VIRTUAL_CHANNEL0,
-	  (uint32_t)nn_input_buffer,
-	  DCMIPP_MODE_SNAPSHOT);
+	SCB_CleanInvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
 
-	while (pipe2_frame_ready == 0)
-	{
-	}
-	SCB_InvalidateDCache_by_Addr(nn_input_buffer, NN_INPUT_SIZE);
+	dbg_pipe2_start_ret = HAL_DCMIPP_CSI_PIPE_Start(
+	    &hdcmipp, DCMIPP_PIPE2, DCMIPP_VIRTUAL_CHANNEL0,
+	    (uint32_t)nn_in, DCMIPP_MODE_SNAPSHOT);
+
+	while (pipe2_frame_ready == 0) {}
+
+	SCB_InvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
+
+	uint32_t t0 = HAL_GetTick();
+	dbg_infer_ret = stai_network_run(network_context, STAI_MODE_SYNC);
+	dbg_infer_ms  = HAL_GetTick() - t0;
+
+	for (int i = 0; i < (int)n_out; i++)
+	  SCB_InvalidateDCache_by_Addr(nn_out[i], nn_out_len[i]);
+
 	BSP_LED_Toggle(LED_GREEN);
     /* USER CODE END WHILE */
 
