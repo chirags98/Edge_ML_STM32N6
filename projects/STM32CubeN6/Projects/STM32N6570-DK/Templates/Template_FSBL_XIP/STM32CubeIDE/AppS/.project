@@ -212,6 +212,16 @@
 			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/ST/STM32_ISP_Library/isp/Src/isp_services.c</locationURI>
 		</link>
 		<link>
+			<name>Middlewares/ai-postprocessing-wrapper/ai-postprocessing-wrapper</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/lib_vision_models_pp/Src</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>Middlewares/ll_aton/ll_aton.c</name>
 			<type>1</type>
 			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stedgeai-lib/Npu/ll_aton/ll_aton.c</locationURI>
@@ -285,6 +295,21 @@
 			<name>Middlewares/STM32_ISP/evision/libn6-evision-st-ae_gcc.a</name>
 			<type>1</type>
 			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/ST/STM32_ISP_Library/evision/Lib/libn6-evision-st-ae_gcc.a</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/ai-postprocessing-wrapper/ai-postprocessing-wrapper/app_postprocess_fd_blazeface_ui.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/ai-postprocessing-wrapper/app_postprocess_fd_blazeface_ui.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/lib_vision_models_pp/Src/fd_pp_blazeface.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stm32-vision-models-postprocessing/lib_vision_models_pp/Src/fd_pp_blazeface.c</locationURI>
+		</link>
+		<link>
+			<name>Middlewares/lib_vision_models_pp/Src/vision_models_pp.c</name>
+			<type>1</type>
+			<locationURI>PARENT-6-PROJECT_LOC/Middlewares/stm32-vision-models-postprocessing/lib_vision_models_pp/Src/vision_models_pp.c</locationURI>
 		</link>
 		<link>
 			<name>Drivers/BSP/Components/IMX335/imx335.c</name>

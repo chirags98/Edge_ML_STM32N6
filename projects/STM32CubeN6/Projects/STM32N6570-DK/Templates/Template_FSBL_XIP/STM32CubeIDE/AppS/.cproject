@@ -70,6 +70,10 @@
 									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Middlewares\stedgeai-lib\Npu\ll_aton&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Middlewares\stedgeai-lib\Npu\Devices\STM32N6xx&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Projects\STM32N6570-DK\Templates\Template_FSBL_XIP\Model&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Middlewares\ai-postprocessing-wrapper&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Middlewares\stm32-vision-models-postprocessing\lib_vision_models_pp\Inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Middlewares\stm32-vision-models-postprocessing\lib_vision_models_pp\Src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\chira\Documents\STM_Projects\Edge_ML_STM32N6\projects\STM32CubeN6\Drivers\CMSIS\DSP\Include&quot;"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.2091503809" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>

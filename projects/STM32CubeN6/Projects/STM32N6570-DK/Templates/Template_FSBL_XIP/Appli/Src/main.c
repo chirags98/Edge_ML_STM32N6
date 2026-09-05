@@ -29,11 +29,21 @@
 #include "stai.h"
 #include "stai_network.h"
 #include "npu_cache.h"
+
+#include "app_postprocess.h"
+
+#include <string.h>
+
+#include "app_config.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef struct {
+  uint32_t X0, Y0, XSize, YSize;
+} Rectangle_TypeDef;
 
+Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480 };
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -53,6 +63,15 @@
 #define NN_INPUT_HEIGHT  128
 #define NN_INPUT_CH      3
 #define NN_INPUT_SIZE    (NN_INPUT_WIDTH * NN_INPUT_HEIGHT * NN_INPUT_CH)  /* 49152 */
+
+#define LCD_FG_WIDTH   800
+#define LCD_FG_HEIGHT  480
+#define LCD_FG_ADDRESS 0x90100000UL
+#define LCD_FG_SIZE    (LCD_FG_WIDTH * LCD_FG_HEIGHT * 2)  /* ARGB4444 */
+
+#define CIRCLE_RADIUS 3
+#define ARGB4444_GREEN  0xF0F0  /* opaque green  */
+#define ARGB4444_YELLOW 0xFFF0  /* opaque yellow */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -104,6 +123,11 @@ volatile int32_t dbg_stai_net_init;
 
 volatile int32_t  dbg_infer_ret;
 volatile uint32_t dbg_infer_ms;
+
+fd_blazeface_pp_static_param_t pp_params;
+fd_pp_out_t pp_output;
+volatile int32_t  dbg_pp_ret;
+volatile uint32_t dbg_nb_detect;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -129,6 +153,15 @@ static ISP_StatusTypeDef SetSensorExposureHelper(uint32_t Instance, int32_t Expo
 static ISP_StatusTypeDef GetSensorExposureHelper(uint32_t Instance, int32_t *Exposure);
 void Error_Handler(void);
 
+static int clamp_point(int *x, int *y);
+static void convert_length(float32_t wi, float32_t hi, int *wo, int *ho);
+static void convert_point(float32_t xi, float32_t yi, int *xo, int *yo);
+static void Display_keypoint(fd_pp_keyPoints_t *key, uint16_t color);
+static void Display_Face(fd_pp_outBuffer_t *detect);
+static void Display_NetworkOutput(fd_pp_out_t *p_postprocess);
+static void overlay_Clear(void);
+static void overlay_DrawRect(int x, int y, int w, int h, uint16_t c);
+static void overlay_FillCircle(int x, int y, int r, uint16_t c);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -247,6 +280,13 @@ int main(void)
 
   stai_network_get_info(network_context, &info);
   stai_network_get_outputs(network_context, nn_out, &n_out);
+
+  dbg_pp_ret = app_postprocess_init(&pp_params, &info);
+  if (dbg_pp_ret != 0)
+  {
+    Error_Handler();
+  }
+
   for (int i = 0; i < (int)n_out; i++)
     nn_out_len[i] = info.outputs[i].size_bytes;
 
@@ -315,6 +355,9 @@ int main(void)
 
   HAL_LTDC_SetAddress(&hltdc, BUFFER_ADDRESS, 0);
 
+  memset((void *)LCD_FG_ADDRESS, 0, LCD_FG_SIZE);   /* transparent until first boxes */
+  HAL_LTDC_SetAddress(&hltdc, LCD_FG_ADDRESS, 1);
+
   ISP_AppliHelpersTypeDef appliHelpers = {0};
   appliHelpers.GetSensorInfo     = GetSensorInfoHelper;
   appliHelpers.SetSensorGain     = SetSensorGainHelper;
@@ -357,6 +400,11 @@ int main(void)
 
 	for (int i = 0; i < (int)n_out; i++)
 	  SCB_InvalidateDCache_by_Addr(nn_out[i], nn_out_len[i]);
+
+	dbg_pp_ret    = app_postprocess_run((void **)nn_out, (int)n_out, &pp_output, &pp_params);
+	dbg_nb_detect = pp_output.nb_detect;
+
+	Display_NetworkOutput(&pp_output);
 
 	BSP_LED_Toggle(LED_GREEN);
     /* USER CODE END WHILE */
@@ -495,6 +543,7 @@ static void MX_LTDC_Init(void)
   /* USER CODE END LTDC_Init 0 */
 
   LTDC_LayerCfgTypeDef pLayerCfg = {0};
+  LTDC_LayerCfgTypeDef pLayerCfg1 = {0};
 
   /* USER CODE BEGIN LTDC_Init 1 */
 
@@ -535,6 +584,25 @@ static void MX_LTDC_Init(void)
   pLayerCfg.Backcolor.Green = 0;
   pLayerCfg.Backcolor.Red = 0;
   if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  pLayerCfg1.WindowX0 = 0;
+  pLayerCfg1.WindowX1 = 800;
+  pLayerCfg1.WindowY0 = 0;
+  pLayerCfg1.WindowY1 = 480;
+  pLayerCfg1.PixelFormat = LTDC_PIXEL_FORMAT_ARGB4444;
+  pLayerCfg1.Alpha = 255;
+  pLayerCfg1.Alpha0 = 0;
+  pLayerCfg1.BlendingFactor1 = LTDC_BLENDING_FACTOR1_PAxCA;
+  pLayerCfg1.BlendingFactor2 = LTDC_BLENDING_FACTOR2_PAxCA;
+  pLayerCfg1.FBStartAdress = 0;
+  pLayerCfg1.ImageWidth = 800;
+  pLayerCfg1.ImageHeight = 480;
+  pLayerCfg1.Backcolor.Blue = 255;
+  pLayerCfg1.Backcolor.Green = 0;
+  pLayerCfg1.Backcolor.Red = 0;
+  if (HAL_LTDC_ConfigLayer(&hltdc, &pLayerCfg1, 1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -909,6 +977,120 @@ void npu_cache_disable_clocks_and_reset(void)
   __HAL_RCC_CACHEAXIRAM_MEM_CLK_DISABLE();
   __HAL_RCC_CACHEAXI_CLK_DISABLE();
   __HAL_RCC_CACHEAXI_FORCE_RESET();
+}
+
+static int clamp_point(int *x, int *y)
+{
+  int xi = *x, yi = *y;
+  if (*x < (int)lcd_bg_area.X0) *x = lcd_bg_area.X0;
+  if (*y < (int)lcd_bg_area.Y0) *y = lcd_bg_area.Y0;
+  if (*x >= (int)(lcd_bg_area.X0 + lcd_bg_area.XSize))
+    *x = lcd_bg_area.X0 + lcd_bg_area.XSize - 1;
+  if (*y >= (int)(lcd_bg_area.Y0 + lcd_bg_area.YSize))
+    *y = lcd_bg_area.Y0 + lcd_bg_area.YSize - 1;
+  return (xi != *x) || (yi != *y);
+}
+
+static void convert_length(float32_t wi, float32_t hi, int *wo, int *ho)
+{
+  *wo = lcd_bg_area.XSize * wi;
+  *ho = lcd_bg_area.YSize * hi;
+}
+
+static void convert_point(float32_t xi, float32_t yi, int *xo, int *yo)
+{
+  *xo = lcd_bg_area.XSize * xi + lcd_bg_area.X0;
+  *yo = lcd_bg_area.YSize * yi + lcd_bg_area.Y0;
+}
+
+void Display_Face(fd_pp_outBuffer_t *detect)
+{
+  int xc, yc, x0, y0, x1, y1, w, h, i;
+
+  convert_point(detect->x_center, detect->y_center, &xc, &yc);
+  convert_length(detect->width, detect->height, &w, &h);
+  x0 = xc - (w + 1) / 2;
+  y0 = yc - (h + 1) / 2;
+  x1 = xc + (w + 1) / 2;
+  y1 = yc + (h + 1) / 2;
+  clamp_point(&x0, &y0);
+  clamp_point(&x1, &y1);
+
+  overlay_DrawRect(x0, y0, x1 - x0, y1 - y0, ARGB4444_GREEN);
+
+  for (i = 0; i < AI_FD_BLAZEFACE_PP_NB_KEYPOINTS; i++)
+    Display_keypoint(&detect->pKeyPoints[i], ARGB4444_YELLOW);
+}
+
+static void Display_NetworkOutput(fd_pp_out_t *p_postprocess)
+{
+  overlay_Clear();   /* fill 800×480 with 0x0000 */
+  for (int32_t i = 0; i < p_postprocess->nb_detect; i++)
+    Display_Face(&p_postprocess->pOutBuff[i]);
+}
+
+static uint16_t *fg(void) { return (uint16_t *)LCD_FG_ADDRESS; }
+
+static void overlay_Clear(void)
+{
+  memset((void *)LCD_FG_ADDRESS, 0, LCD_FG_SIZE);
+}
+
+static void overlay_DrawRect(int x, int y, int w, int h, uint16_t c)
+{
+  uint16_t *p = fg();
+  int i;
+  if (w <= 0 || h <= 0) return;
+  for (i = 0; i < w; i++) {
+    p[y * LCD_FG_WIDTH + x + i] = c;
+    p[(y + h - 1) * LCD_FG_WIDTH + x + i] = c;
+  }
+  for (i = 0; i < h; i++) {
+    p[(y + i) * LCD_FG_WIDTH + x] = c;
+    p[(y + i) * LCD_FG_WIDTH + x + w - 1] = c;
+  }
+}
+
+static void overlay_FillCircle(int x, int y, int r, uint16_t c)
+{
+  uint16_t *p = fg();
+  int dx, dy;
+  int r2 = r * r;
+
+  for (dy = -r; dy <= r; dy++)
+  {
+    int py = y + dy;
+    if (py < 0 || py >= LCD_FG_HEIGHT)
+      continue;
+    for (dx = -r; dx <= r; dx++)
+    {
+      int px = x + dx;
+      if (px < 0 || px >= LCD_FG_WIDTH)
+        continue;
+      if (dx * dx + dy * dy <= r2)
+        p[py * LCD_FG_WIDTH + px] = c;
+    }
+  }
+}
+
+static void Display_keypoint(fd_pp_keyPoints_t *key, uint16_t color)
+{
+  int is_clamp;
+  int xc, yc;
+  int x, y;
+
+  convert_point(key->x, key->y, &x, &y);
+  xc = x - CIRCLE_RADIUS / 2;
+  yc = y - CIRCLE_RADIUS / 2;
+  is_clamp = clamp_point(&xc, &yc);
+  xc = x + CIRCLE_RADIUS / 2;
+  yc = y + CIRCLE_RADIUS / 2;
+  is_clamp |= clamp_point(&xc, &yc);
+
+  if (is_clamp)
+    return;
+
+  overlay_FillCircle(x, y, CIRCLE_RADIUS, color);
 }
 /* USER CODE END 4 */
 
