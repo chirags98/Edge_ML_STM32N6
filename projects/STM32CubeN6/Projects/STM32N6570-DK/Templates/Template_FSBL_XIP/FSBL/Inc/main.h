@@ -75,6 +75,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define SMPS_OVD_Pin GPIO_PIN_4
+#define SMPS_OVD_GPIO_Port GPIOF
 
 /* USER CODE BEGIN Private defines */
 
