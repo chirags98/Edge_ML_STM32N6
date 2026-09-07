@@ -52,7 +52,10 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define FRAME_WIDTH        640
 #define FRAME_HEIGHT       480
 #define FRAME_BUFFER_SIZE  (FRAME_WIDTH * FRAME_HEIGHT * 2)   /* RGB565 = 2 bytes/pixel */
-#define BUFFER_ADDRESS     0x90000000UL /* PSRAM (XSPI1): Pipe 1 / LCD */
+/* PSRAM (XSPI1) map: two Pipe 1 framebuffers ping-ponged under the LCD,
+   overlay in between. LTDC never reads the buffer DCMIPP is writing. */
+#define BUFFER_ADDRESS     0x90000000UL
+#define BUFFER_ADDRESS_1   0x90200000UL
 
 #define DIV_FACTOR(SRC, DST) (((uint32_t)((1024 * DST) / SRC)) > 1023 ? 1023 : ((uint32_t)((1024 * DST) / SRC)))
 #define DOWNSCALE_RATIO(SRC, DST) (((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192) < 8192) ? 8192 : \
@@ -410,7 +413,13 @@ int main(void)
     Error_Handler();
   }
 
-  HAL_DCMIPP_CSI_PIPE_Start(&hdcmipp, DCMIPP_PIPE1, DCMIPP_VIRTUAL_CHANNEL0, BUFFER_ADDRESS, DCMIPP_MODE_CONTINUOUS);
+  if (HAL_DCMIPP_CSI_PIPE_DoubleBufferStart(
+          &hdcmipp, DCMIPP_PIPE1, DCMIPP_VIRTUAL_CHANNEL0,
+          BUFFER_ADDRESS, BUFFER_ADDRESS_1,
+          DCMIPP_MODE_CONTINUOUS) != HAL_OK)
+  {
+    Error_Handler();
+  }
   ISP_Start(&hcamera_isp);
   pipe2_consumed = pipe2_frame_count;
   if (HAL_DCMIPP_CSI_PIPE_DoubleBufferStart(
@@ -1019,6 +1028,11 @@ void HAL_DCMIPP_PIPE_FrameEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t 
   if (Pipe == DCMIPP_PIPE1)
   {
     cam_frame_count++;
+    /* DCMIPP alternates buffers, so the frame that just completed is the one
+       DCMIPP is no longer writing. Point LTDC at it and let the shadow
+       register latch during vertical blanking to avoid a torn scan-out. */
+    LTDC_LAYER(&hltdc, 0)->CFBAR = ((cam_frame_count & 1u) != 0u) ? BUFFER_ADDRESS : BUFFER_ADDRESS_1;
+    LTDC_LAYER(&hltdc, 0)->RCR   = LTDC_LxRCR_VBR | LTDC_LxRCR_GRMSK;
   }
 
   if (Pipe == DCMIPP_PIPE2)
