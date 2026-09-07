@@ -78,6 +78,12 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define FONT_H  7
 #define FONT_SX 2                /* 2x scale → 10×14 glyphs */
 #define FONT_SY 2
+#define HUD_X 8
+#define HUD_Y 8
+#define HUD_W 280
+#define HUD_H 40
+/* 3 faces × (4 box edges + 6 keypoints) + HUD, plus slack */
+#define DIRTY_MAX 40
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -139,6 +145,15 @@ static uint32_t loop_last_tick;
 volatile uint32_t dbg_cam_fps;
 static uint32_t cam_last_tick;
 static uint32_t cam_last_frames;
+
+typedef struct {
+  int16_t x;
+  int16_t y;
+  int16_t w;
+  int16_t h;
+} DirtyRect_t;
+static DirtyRect_t dirty_list[DIRTY_MAX];
+static uint32_t dirty_count;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -173,6 +188,8 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
                                   uint32_t infer_ms, uint32_t det_fps,
                                   uint32_t cam_fps);
 static void overlay_Clear(void);
+static void overlay_MarkDirty(int x, int y, int w, int h);
+static void overlay_ClearDirty(void);
 static void overlay_DrawRect(int x, int y, int w, int h, uint16_t c);
 static void overlay_FillCircle(int x, int y, int r, uint16_t c);
 static void overlay_FillRect(int x, int y, int w, int h, uint16_t c);
@@ -1104,11 +1121,12 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   char line[32];
   char *p;
 
-  overlay_Clear();   /* fill 800×480 with 0x0000 */
+  overlay_ClearDirty();
   for (int32_t i = 0; i < p_postprocess->nb_detect; i++)
     Display_Face(&p_postprocess->pOutBuff[i]);
 
-  overlay_FillRect(8, 8, 280, 40, ARGB4444_HUD_BG);
+  overlay_FillRect(HUD_X, HUD_Y, HUD_W, HUD_H, ARGB4444_HUD_BG);
+  overlay_MarkDirty(HUD_X, HUD_Y, HUD_W, HUD_H);
 
   p = line;
   memcpy(p, "INF ", 4); p += 4;
@@ -1132,6 +1150,39 @@ static uint16_t *fg(void) { return (uint16_t *)LCD_FG_ADDRESS; }
 static void overlay_Clear(void)
 {
   memset((void *)LCD_FG_ADDRESS, 0, LCD_FG_SIZE);
+}
+
+static void overlay_MarkDirty(int x, int y, int w, int h)
+{
+  if (x < 0) { w += x; x = 0; }
+  if (y < 0) { h += y; y = 0; }
+  if (x + w > LCD_FG_WIDTH)  w = LCD_FG_WIDTH - x;
+  if (y + h > LCD_FG_HEIGHT) h = LCD_FG_HEIGHT - y;
+  if (w <= 0 || h <= 0)
+    return;
+
+  if (dirty_count >= DIRTY_MAX)
+  {
+    overlay_Clear();
+    dirty_count = 0;
+    return;
+  }
+
+  dirty_list[dirty_count].x = (int16_t)x;
+  dirty_list[dirty_count].y = (int16_t)y;
+  dirty_list[dirty_count].w = (int16_t)w;
+  dirty_list[dirty_count].h = (int16_t)h;
+  dirty_count++;
+}
+
+static void overlay_ClearDirty(void)
+{
+  uint32_t i;
+
+  for (i = 0; i < dirty_count; i++)
+    overlay_FillRect(dirty_list[i].x, dirty_list[i].y,
+                     dirty_list[i].w, dirty_list[i].h, 0);
+  dirty_count = 0;
 }
 
 /* ASCII 32..90, 5 columns each. Bit 0 = top of glyph. */
@@ -1168,6 +1219,13 @@ static void overlay_FillRect(int x, int y, int w, int h, uint16_t c)
   if (x + w > LCD_FG_WIDTH)  w = LCD_FG_WIDTH - x;
   if (y + h > LCD_FG_HEIGHT) h = LCD_FG_HEIGHT - y;
   if (w <= 0 || h <= 0) return;
+
+  if (c == 0)
+  {
+    for (yy = 0; yy < h; yy++)
+      memset(&p[(y + yy) * LCD_FG_WIDTH + x], 0, (size_t)w * sizeof(*p));
+    return;
+  }
 
   for (yy = 0; yy < h; yy++)
     for (xx = 0; xx < w; xx++)
@@ -1221,6 +1279,10 @@ static void overlay_DrawRect(int x, int y, int w, int h, uint16_t c)
     p[(y + i) * LCD_FG_WIDTH + x] = c;
     p[(y + i) * LCD_FG_WIDTH + x + w - 1] = c;
   }
+  overlay_MarkDirty(x, y, w, 1);
+  overlay_MarkDirty(x, y + h - 1, w, 1);
+  overlay_MarkDirty(x, y, 1, h);
+  overlay_MarkDirty(x + w - 1, y, 1, h);
 }
 
 static void overlay_FillCircle(int x, int y, int r, uint16_t c)
@@ -1243,6 +1305,7 @@ static void overlay_FillCircle(int x, int y, int r, uint16_t c)
         p[py * LCD_FG_WIDTH + px] = c;
     }
   }
+  overlay_MarkDirty(x - r, y - r, 2 * r + 1, 2 * r + 1);
 }
 
 static void Display_keypoint(fd_pp_keyPoints_t *key, uint16_t color)
