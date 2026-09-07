@@ -52,10 +52,13 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define FRAME_WIDTH        640
 #define FRAME_HEIGHT       480
 #define FRAME_BUFFER_SIZE  (FRAME_WIDTH * FRAME_HEIGHT * 2)   /* RGB565 = 2 bytes/pixel */
-/* PSRAM (XSPI1) map: two Pipe 1 framebuffers ping-ponged under the LCD,
-   overlay in between. LTDC never reads the buffer DCMIPP is writing. */
+/* PSRAM (XSPI1) map — 1 MB slots, 4 buffers, 4 MB total:
+   0x90000000  Pipe 1 ping  (600 KB, RGB565)
+   0x90100000  Pipe 1 pong  (600 KB, RGB565)
+   0x90200000  Overlay A    (750 KB, ARGB4444)
+   0x90300000  Overlay B    (750 KB, ARGB4444) */
 #define BUFFER_ADDRESS     0x90000000UL
-#define BUFFER_ADDRESS_1   0x90200000UL
+#define BUFFER_ADDRESS_1   0x90100000UL
 
 #define DIV_FACTOR(SRC, DST) (((uint32_t)((1024 * DST) / SRC)) > 1023 ? 1023 : ((uint32_t)((1024 * DST) / SRC)))
 #define DOWNSCALE_RATIO(SRC, DST) (((uint32_t)(((float_t)(SRC) / (float_t)(DST)) * 8192) < 8192) ? 8192 : \
@@ -67,10 +70,11 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define NN_INPUT_CH      3
 #define NN_INPUT_SIZE    (NN_INPUT_WIDTH * NN_INPUT_HEIGHT * NN_INPUT_CH)  /* 49152 */
 
-#define LCD_FG_WIDTH   800
-#define LCD_FG_HEIGHT  480
-#define LCD_FG_ADDRESS 0x90100000UL
-#define LCD_FG_SIZE    (LCD_FG_WIDTH * LCD_FG_HEIGHT * 2)  /* ARGB4444 */
+#define LCD_FG_WIDTH     800
+#define LCD_FG_HEIGHT    480
+#define LCD_FG_ADDRESS   0x90200000UL  /* overlay back/front buffer A */
+#define LCD_FG_ADDRESS_1 0x90300000UL  /* overlay back/front buffer B */
+#define LCD_FG_SIZE      (LCD_FG_WIDTH * LCD_FG_HEIGHT * 2)  /* ARGB4444 */
 
 #define CIRCLE_RADIUS 3
 #define ARGB4444_GREEN  0xF0F0  /* opaque green  */
@@ -139,8 +143,12 @@ typedef struct {
   int16_t w;
   int16_t h;
 } DirtyRect_t;
-static DirtyRect_t dirty_list[DIRTY_MAX];
-static uint32_t dirty_count;
+/* Double-buffered overlay: lcd_fg_wr_idx is the buffer the CPU writes into.
+   LTDC always shows the other buffer. Each buffer keeps its own dirty list so
+   that clearing only erases what was drawn into *that* buffer last time. */
+static DirtyRect_t dirty_list[2][DIRTY_MAX];
+static uint32_t    dirty_count[2];
+static uint32_t    lcd_fg_wr_idx;   /* 0 or 1 — index of the write buffer */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -398,8 +406,11 @@ int main(void)
 
   HAL_LTDC_SetAddress(&hltdc, BUFFER_ADDRESS, 0);
 
-  memset((void *)LCD_FG_ADDRESS, 0, LCD_FG_SIZE);   /* transparent until first boxes */
+  memset((void *)LCD_FG_ADDRESS,   0, LCD_FG_SIZE);  /* clear both overlay buffers */
+  memset((void *)LCD_FG_ADDRESS_1, 0, LCD_FG_SIZE);
+  /* LTDC shows buffer 0; CPU starts writing into buffer 1 */
   HAL_LTDC_SetAddress(&hltdc, LCD_FG_ADDRESS, 1);
+  lcd_fg_wr_idx = 1u;
 
   ISP_AppliHelpersTypeDef appliHelpers = {0};
   appliHelpers.GetSensorInfo     = GetSensorInfoHelper;
@@ -1156,9 +1167,22 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   memcpy(p, " FPS", 4); p += 4;
   *p = '\0';
   overlay_DrawString(12, 27, line, ARGB4444_WHITE);
+
+  /* Drawing complete — schedule a VBLANK swap so LTDC picks up the finished
+     buffer at the start of the next frame, never mid-scan. */
+  uint32_t show_addr = lcd_fg_wr_idx ? LCD_FG_ADDRESS_1 : LCD_FG_ADDRESS;
+  LTDC_LAYER(&hltdc, 1)->CFBAR = show_addr;
+  LTDC_LAYER(&hltdc, 1)->RCR   = LTDC_LxRCR_VBR | LTDC_LxRCR_GRMSK;
+
+  /* Flip: next frame draws into the other (now-stale) buffer */
+  lcd_fg_wr_idx ^= 1u;
 }
 
-static uint16_t *fg(void) { return (uint16_t *)LCD_FG_ADDRESS; }
+/* Returns the write buffer — the one the CPU should draw into this frame. */
+static uint16_t *fg(void)
+{
+  return (uint16_t *)(lcd_fg_wr_idx ? LCD_FG_ADDRESS_1 : LCD_FG_ADDRESS);
+}
 
 static void overlay_Clear(void)
 {
@@ -1174,28 +1198,28 @@ static void overlay_MarkDirty(int x, int y, int w, int h)
   if (w <= 0 || h <= 0)
     return;
 
-  if (dirty_count >= DIRTY_MAX)
+  if (dirty_count[lcd_fg_wr_idx] >= DIRTY_MAX)
   {
     overlay_Clear();
-    dirty_count = 0;
+    dirty_count[lcd_fg_wr_idx] = 0;
     return;
   }
 
-  dirty_list[dirty_count].x = (int16_t)x;
-  dirty_list[dirty_count].y = (int16_t)y;
-  dirty_list[dirty_count].w = (int16_t)w;
-  dirty_list[dirty_count].h = (int16_t)h;
-  dirty_count++;
+  dirty_list[lcd_fg_wr_idx][dirty_count[lcd_fg_wr_idx]].x = (int16_t)x;
+  dirty_list[lcd_fg_wr_idx][dirty_count[lcd_fg_wr_idx]].y = (int16_t)y;
+  dirty_list[lcd_fg_wr_idx][dirty_count[lcd_fg_wr_idx]].w = (int16_t)w;
+  dirty_list[lcd_fg_wr_idx][dirty_count[lcd_fg_wr_idx]].h = (int16_t)h;
+  dirty_count[lcd_fg_wr_idx]++;
 }
 
 static void overlay_ClearDirty(void)
 {
   uint32_t i;
 
-  for (i = 0; i < dirty_count; i++)
-    overlay_FillRect(dirty_list[i].x, dirty_list[i].y,
-                     dirty_list[i].w, dirty_list[i].h, 0);
-  dirty_count = 0;
+  for (i = 0; i < dirty_count[lcd_fg_wr_idx]; i++)
+    overlay_FillRect(dirty_list[lcd_fg_wr_idx][i].x, dirty_list[lcd_fg_wr_idx][i].y,
+                     dirty_list[lcd_fg_wr_idx][i].w, dirty_list[lcd_fg_wr_idx][i].h, 0);
+  dirty_count[lcd_fg_wr_idx] = 0;
 }
 
 /* ASCII 32..90, 5 columns each. Bit 0 = top of glyph. */
