@@ -122,9 +122,10 @@ volatile int32_t  dbg_pipe_start_ret;
 volatile uint32_t dbg_i2c_err;
 
 __attribute__((aligned(32)))
-//static uint8_t nn_input_buffer[NN_INPUT_SIZE];
+static uint8_t nn_capture[2][NN_INPUT_SIZE];
 volatile uint32_t pipe2_frame_ready;
 volatile uint32_t dbg_pipe2_frame_count;
+static uint32_t pipe2_consumed;
 volatile int32_t  dbg_pipe2_start_ret;
 
 STAI_NETWORK_CONTEXT_DECLARE(network_context, STAI_NETWORK_CONTEXT_SIZE);
@@ -423,6 +424,15 @@ int main(void)
 
   HAL_DCMIPP_CSI_PIPE_Start(&hdcmipp, DCMIPP_PIPE1, DCMIPP_VIRTUAL_CHANNEL0, BUFFER_ADDRESS, DCMIPP_MODE_CONTINUOUS);
   ISP_Start(&hcamera_isp);
+  pipe2_consumed = dbg_pipe2_frame_count;
+  dbg_pipe2_start_ret = HAL_DCMIPP_CSI_PIPE_DoubleBufferStart(
+      &hdcmipp, DCMIPP_PIPE2, DCMIPP_VIRTUAL_CHANNEL0,
+      (uint32_t)nn_capture[0], (uint32_t)nn_capture[1],
+      DCMIPP_MODE_CONTINUOUS);
+  if (dbg_pipe2_start_ret != HAL_OK)
+  {
+    Error_Handler();
+  }
   cam_last_tick   = HAL_GetTick();
   cam_last_frames = dbg_frame_count;
   /* USER CODE END 2 */
@@ -436,16 +446,17 @@ int main(void)
 		BSP_LED_Toggle(LED_RED);   /* or your own error indicator */
 	}
 
-	pipe2_frame_ready = 0;
-	SCB_CleanInvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
+	while (dbg_pipe2_frame_count == pipe2_consumed) {}
 
-	dbg_pipe2_start_ret = HAL_DCMIPP_CSI_PIPE_Start(
-	    &hdcmipp, DCMIPP_PIPE2, DCMIPP_VIRTUAL_CHANNEL0,
-	    (uint32_t)nn_in, DCMIPP_MODE_SNAPSHOT);
+	{
+	  uint32_t ready = dbg_pipe2_frame_count;
+	  uint32_t idx   = (ready - 1u) & 1u;
+	  pipe2_consumed = ready;
 
-	while (pipe2_frame_ready == 0) {}
-
-	SCB_InvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
+	  SCB_InvalidateDCache_by_Addr(nn_capture[idx], NN_INPUT_SIZE);
+	  memcpy(nn_in, nn_capture[idx], NN_INPUT_SIZE);
+	  SCB_CleanInvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
+	}
 
 	uint32_t t0 = HAL_GetTick();
 	dbg_infer_ret = stai_network_run(network_context, STAI_MODE_SYNC);
