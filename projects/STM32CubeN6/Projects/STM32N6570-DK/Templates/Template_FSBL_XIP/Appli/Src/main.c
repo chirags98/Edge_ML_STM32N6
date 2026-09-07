@@ -264,6 +264,25 @@ int main(void)
 
   npu_cache_enable();   /* CACHEAXI already inited by MX_; this just enables it */
 
+  /* Keep clocks alive during WFE — the ATON runtime sleeps the CPU each epoch */
+  __HAL_RCC_XSPI1_CLK_SLEEP_ENABLE();    /* LCD framebuffer in PSRAM */
+  __HAL_RCC_XSPI2_CLK_SLEEP_ENABLE();    /* NN weights + XIP code */
+  __HAL_RCC_NPU_CLK_SLEEP_ENABLE();
+  __HAL_RCC_CACHEAXI_CLK_SLEEP_ENABLE();
+  __HAL_RCC_LTDC_CLK_SLEEP_ENABLE();
+  __HAL_RCC_DMA2D_CLK_SLEEP_ENABLE();
+  __HAL_RCC_DCMIPP_CLK_SLEEP_ENABLE();
+  __HAL_RCC_CSI_CLK_SLEEP_ENABLE();
+
+  __HAL_RCC_FLEXRAM_MEM_CLK_SLEEP_ENABLE();
+  __HAL_RCC_AXISRAM1_MEM_CLK_SLEEP_ENABLE();
+  __HAL_RCC_AXISRAM2_MEM_CLK_SLEEP_ENABLE();
+  __HAL_RCC_AXISRAM3_MEM_CLK_SLEEP_ENABLE();
+  __HAL_RCC_AXISRAM4_MEM_CLK_SLEEP_ENABLE();  /* NPU activations */
+  __HAL_RCC_AXISRAM5_MEM_CLK_SLEEP_ENABLE();  /* NPU activations */
+  __HAL_RCC_AXISRAM6_MEM_CLK_SLEEP_ENABLE();
+  __HAL_RCC_CACHEAXIRAM_MEM_CLK_SLEEP_ENABLE();
+
   dbg_stai_rt_init  = stai_runtime_init();
   dbg_stai_net_init = stai_network_init(network_context);
   if (dbg_stai_net_init != STAI_SUCCESS)
