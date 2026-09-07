@@ -72,6 +72,12 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define CIRCLE_RADIUS 3
 #define ARGB4444_GREEN  0xF0F0  /* opaque green  */
 #define ARGB4444_YELLOW 0xFFF0  /* opaque yellow */
+#define ARGB4444_WHITE  0xFFFF
+#define ARGB4444_HUD_BG 0xF000   /* opaque black */
+#define FONT_W  5
+#define FONT_H  7
+#define FONT_SX 2                /* 2x scale → 10×14 glyphs */
+#define FONT_SY 2
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -128,6 +134,11 @@ fd_blazeface_pp_static_param_t pp_params;
 fd_pp_out_t pp_output;
 volatile int32_t  dbg_pp_ret;
 volatile uint32_t dbg_nb_detect;
+volatile uint32_t dbg_fps;
+static uint32_t loop_last_tick;
+volatile uint32_t dbg_cam_fps;
+static uint32_t cam_last_tick;
+static uint32_t cam_last_frames;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -158,10 +169,14 @@ static void convert_length(float32_t wi, float32_t hi, int *wo, int *ho);
 static void convert_point(float32_t xi, float32_t yi, int *xo, int *yo);
 static void Display_keypoint(fd_pp_keyPoints_t *key, uint16_t color);
 static void Display_Face(fd_pp_outBuffer_t *detect);
-static void Display_NetworkOutput(fd_pp_out_t *p_postprocess);
+static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
+                                  uint32_t infer_ms, uint32_t det_fps,
+                                  uint32_t cam_fps);
 static void overlay_Clear(void);
 static void overlay_DrawRect(int x, int y, int w, int h, uint16_t c);
 static void overlay_FillCircle(int x, int y, int r, uint16_t c);
+static void overlay_FillRect(int x, int y, int w, int h, uint16_t c);
+static void overlay_DrawString(int x, int y, const char *s, uint16_t fgcol);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -391,6 +406,8 @@ int main(void)
 
   HAL_DCMIPP_CSI_PIPE_Start(&hdcmipp, DCMIPP_PIPE1, DCMIPP_VIRTUAL_CHANNEL0, BUFFER_ADDRESS, DCMIPP_MODE_CONTINUOUS);
   ISP_Start(&hcamera_isp);
+  cam_last_tick   = HAL_GetTick();
+  cam_last_frames = dbg_frame_count;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -423,7 +440,26 @@ int main(void)
 	dbg_pp_ret    = app_postprocess_run((void **)nn_out, (int)n_out, &pp_output, &pp_params);
 	dbg_nb_detect = pp_output.nb_detect;
 
-	Display_NetworkOutput(&pp_output);
+	{
+	  uint32_t now = HAL_GetTick();
+	  uint32_t dt  = now - loop_last_tick;
+	  loop_last_tick = now;
+	  dbg_fps = (dt > 0u) ? (1000u / dt) : 0u;
+	}
+
+	{
+	  uint32_t now = HAL_GetTick();
+	  uint32_t dt  = now - cam_last_tick;
+	  if (dt >= 1000u)
+	  {
+	    uint32_t frames = dbg_frame_count - cam_last_frames;
+	    dbg_cam_fps     = (frames * 1000u) / dt;
+	    cam_last_frames = dbg_frame_count;
+	    cam_last_tick   = now;
+	  }
+	}
+
+	Display_NetworkOutput(&pp_output, dbg_infer_ms, dbg_fps, dbg_cam_fps);
 
 	BSP_LED_Toggle(LED_GREEN);
     /* USER CODE END WHILE */
@@ -1042,11 +1078,53 @@ void Display_Face(fd_pp_outBuffer_t *detect)
     Display_keypoint(&detect->pKeyPoints[i], ARGB4444_YELLOW);
 }
 
-static void Display_NetworkOutput(fd_pp_out_t *p_postprocess)
+static int u32_to_str(char *dst, uint32_t v)
 {
+  char tmp[10];
+  int n = 0;
+  int i;
+
+  if (v == 0u) {
+    dst[0] = '0';
+    return 1;
+  }
+  while (v && n < 10) {
+    tmp[n++] = (char)('0' + (v % 10u));
+    v /= 10u;
+  }
+  for (i = 0; i < n; i++)
+    dst[i] = tmp[n - 1 - i];
+  return n;
+}
+
+static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
+                                  uint32_t infer_ms, uint32_t det_fps,
+                                  uint32_t cam_fps)
+{
+  char line[32];
+  char *p;
+
   overlay_Clear();   /* fill 800×480 with 0x0000 */
   for (int32_t i = 0; i < p_postprocess->nb_detect; i++)
     Display_Face(&p_postprocess->pOutBuff[i]);
+
+  overlay_FillRect(8, 8, 280, 40, ARGB4444_HUD_BG);
+
+  p = line;
+  memcpy(p, "INF ", 4); p += 4;
+  p += u32_to_str(p, infer_ms);
+  memcpy(p, " MS  ", 5); p += 5;
+  p += u32_to_str(p, det_fps);
+  memcpy(p, " FPS", 4); p += 4;
+  *p = '\0';
+  overlay_DrawString(12, 10, line, ARGB4444_WHITE);
+
+  p = line;
+  memcpy(p, "CAM ", 4); p += 4;
+  p += u32_to_str(p, cam_fps);
+  memcpy(p, " FPS", 4); p += 4;
+  *p = '\0';
+  overlay_DrawString(12, 27, line, ARGB4444_WHITE);
 }
 
 static uint16_t *fg(void) { return (uint16_t *)LCD_FG_ADDRESS; }
@@ -1054,6 +1132,80 @@ static uint16_t *fg(void) { return (uint16_t *)LCD_FG_ADDRESS; }
 static void overlay_Clear(void)
 {
   memset((void *)LCD_FG_ADDRESS, 0, LCD_FG_SIZE);
+}
+
+/* ASCII 32..90, 5 columns each. Bit 0 = top of glyph. */
+static const uint8_t font5x7[64][5] = {
+  [' ' - 32] = {0x00, 0x00, 0x00, 0x00, 0x00},
+  ['0' - 32] = {0x3E, 0x51, 0x49, 0x45, 0x3E},
+  ['1' - 32] = {0x00, 0x42, 0x7F, 0x40, 0x00},
+  ['2' - 32] = {0x42, 0x61, 0x51, 0x49, 0x46},
+  ['3' - 32] = {0x21, 0x41, 0x45, 0x4B, 0x31},
+  ['4' - 32] = {0x18, 0x14, 0x12, 0x7F, 0x10},
+  ['5' - 32] = {0x27, 0x45, 0x45, 0x45, 0x39},
+  ['6' - 32] = {0x3C, 0x4A, 0x49, 0x49, 0x30},
+  ['7' - 32] = {0x01, 0x71, 0x09, 0x05, 0x03},
+  ['8' - 32] = {0x36, 0x49, 0x49, 0x49, 0x36},
+  ['9' - 32] = {0x06, 0x49, 0x49, 0x29, 0x1E},
+  [':' - 32] = {0x00, 0x36, 0x36, 0x00, 0x00},
+  ['A' - 32] = {0x7E, 0x11, 0x11, 0x11, 0x7E},
+  ['C' - 32] = {0x3E, 0x41, 0x41, 0x41, 0x22},
+  ['F' - 32] = {0x7F, 0x09, 0x09, 0x09, 0x01},
+  ['I' - 32] = {0x00, 0x41, 0x7F, 0x41, 0x00},
+  ['M' - 32] = {0x7F, 0x02, 0x0C, 0x02, 0x7F},
+  ['N' - 32] = {0x7F, 0x04, 0x08, 0x10, 0x7F},
+  ['P' - 32] = {0x7F, 0x09, 0x09, 0x09, 0x06},
+  ['S' - 32] = {0x26, 0x49, 0x49, 0x49, 0x32},
+};
+
+static void overlay_FillRect(int x, int y, int w, int h, uint16_t c)
+{
+  uint16_t *p = fg();
+  int xx, yy;
+
+  if (x < 0) { w += x; x = 0; }
+  if (y < 0) { h += y; y = 0; }
+  if (x + w > LCD_FG_WIDTH)  w = LCD_FG_WIDTH - x;
+  if (y + h > LCD_FG_HEIGHT) h = LCD_FG_HEIGHT - y;
+  if (w <= 0 || h <= 0) return;
+
+  for (yy = 0; yy < h; yy++)
+    for (xx = 0; xx < w; xx++)
+      p[(y + yy) * LCD_FG_WIDTH + x + xx] = c;
+}
+
+static void overlay_DrawChar(int x, int y, char ch, uint16_t fgcol)
+{
+  const uint8_t *col;
+  int cx, cy, sx, sy;
+  uint16_t *p = fg();
+
+  if (ch < 32 || ch > 90)
+    ch = ' ';
+  col = font5x7[ch - 32];
+  for (cx = 0; cx < FONT_W; cx++) {
+    for (cy = 0; cy < FONT_H; cy++) {
+      if (col[cx] & (1u << cy)) {
+        for (sy = 0; sy < FONT_SY; sy++) {
+          for (sx = 0; sx < FONT_SX; sx++) {
+            int px = x + cx * FONT_SX + sx;
+            int py = y + cy * FONT_SY + sy;
+            if ((unsigned)px < LCD_FG_WIDTH && (unsigned)py < LCD_FG_HEIGHT)
+              p[py * LCD_FG_WIDTH + px] = fgcol;
+          }
+        }
+      }
+    }
+  }
+}
+
+static void overlay_DrawString(int x, int y, const char *s, uint16_t fgcol)
+{
+  int advance = (FONT_W + 1) * FONT_SX;
+  while (*s) {
+    overlay_DrawChar(x, y, *s++, fgcol);
+    x += advance;
+  }
 }
 
 static void overlay_DrawRect(int x, int y, int w, int h, uint16_t c)
