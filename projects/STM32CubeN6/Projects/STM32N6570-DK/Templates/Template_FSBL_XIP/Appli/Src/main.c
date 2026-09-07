@@ -110,42 +110,25 @@ static int32_t isp_gain;
 static int32_t isp_exposure;
 ISP_HandleTypeDef hcamera_isp;
 
-volatile uint32_t dbg_frame_count;
-volatile uint32_t dbg_vsync_count;
-
-volatile int32_t  dbg_readid_ret;
-volatile uint32_t dbg_id;
-volatile int32_t  dbg_imx335_init_ret;
-volatile int32_t  dbg_setfreq_ret;
-volatile int32_t  dbg_isp_init_ret;
-volatile int32_t  dbg_pipe_start_ret;
-volatile uint32_t dbg_i2c_err;
-
+volatile uint32_t cam_frame_count;
 __attribute__((aligned(32)))
 static uint8_t nn_capture[2][NN_INPUT_SIZE];
-volatile uint32_t pipe2_frame_ready;
-volatile uint32_t dbg_pipe2_frame_count;
+volatile uint32_t pipe2_frame_count;
 static uint32_t pipe2_consumed;
-volatile int32_t  dbg_pipe2_start_ret;
 
 STAI_NETWORK_CONTEXT_DECLARE(network_context, STAI_NETWORK_CONTEXT_SIZE);
 stai_ptr nn_in;
 stai_ptr nn_out[STAI_NETWORK_OUT_NUM];
-volatile int32_t dbg_stai_rt_init;
-volatile int32_t dbg_stai_net_init;
 
-volatile int32_t  dbg_infer_ret;
-volatile uint32_t dbg_infer_ms;
+static uint32_t infer_ms;
+static uint32_t det_fps;
+static uint32_t cam_fps;
+static uint32_t loop_last_tick;
+static uint32_t cam_last_tick;
+static uint32_t cam_last_frames;
 
 fd_blazeface_pp_static_param_t pp_params;
 fd_pp_out_t pp_output;
-volatile int32_t  dbg_pp_ret;
-volatile uint32_t dbg_nb_detect;
-volatile uint32_t dbg_fps;
-static uint32_t loop_last_tick;
-volatile uint32_t dbg_cam_fps;
-static uint32_t cam_last_tick;
-static uint32_t cam_last_frames;
 
 typedef struct {
   int16_t x;
@@ -316,9 +299,8 @@ int main(void)
   __HAL_RCC_AXISRAM6_MEM_CLK_SLEEP_ENABLE();
   __HAL_RCC_CACHEAXIRAM_MEM_CLK_SLEEP_ENABLE();
 
-  dbg_stai_rt_init  = stai_runtime_init();
-  dbg_stai_net_init = stai_network_init(network_context);
-  if (dbg_stai_net_init != STAI_SUCCESS)
+  stai_runtime_init();
+  if (stai_network_init(network_context) != STAI_SUCCESS)
   {
     Error_Handler();
   }
@@ -333,8 +315,7 @@ int main(void)
   stai_network_get_info(network_context, &info);
   stai_network_get_outputs(network_context, nn_out, &n_out);
 
-  dbg_pp_ret = app_postprocess_init(&pp_params, &info);
-  if (dbg_pp_ret != 0)
+  if (app_postprocess_init(&pp_params, &info) != 0)
   {
     Error_Handler();
   }
@@ -399,11 +380,18 @@ int main(void)
 
   uint32_t id;
   IMX335_RegisterBusIO(&IMX335Obj, &IOCtx);
-  dbg_readid_ret      = IMX335_ReadID(&IMX335Obj, &id);                 /* check id == IMX335_CHIP_ID */
-  dbg_id              = id;
-  dbg_i2c_err         = HAL_I2C_GetError(&hi2c1);
-  dbg_imx335_init_ret = IMX335_Init(&IMX335Obj, IMX335_R2592_1944, IMX335_RAW_RGGB10);
-  dbg_setfreq_ret     = IMX335_SetFrequency(&IMX335Obj, IMX335_INCK_24MHZ);
+  if (IMX335_ReadID(&IMX335Obj, &id) != IMX335_OK)
+  {
+    Error_Handler();
+  }
+  if (IMX335_Init(&IMX335Obj, IMX335_R2592_1944, IMX335_RAW_RGGB10) != IMX335_OK)
+  {
+    Error_Handler();
+  }
+  if (IMX335_SetFrequency(&IMX335Obj, IMX335_INCK_24MHZ) != IMX335_OK)
+  {
+    Error_Handler();
+  }
 
   HAL_LTDC_SetAddress(&hltdc, BUFFER_ADDRESS, 0);
 
@@ -424,17 +412,16 @@ int main(void)
 
   HAL_DCMIPP_CSI_PIPE_Start(&hdcmipp, DCMIPP_PIPE1, DCMIPP_VIRTUAL_CHANNEL0, BUFFER_ADDRESS, DCMIPP_MODE_CONTINUOUS);
   ISP_Start(&hcamera_isp);
-  pipe2_consumed = dbg_pipe2_frame_count;
-  dbg_pipe2_start_ret = HAL_DCMIPP_CSI_PIPE_DoubleBufferStart(
-      &hdcmipp, DCMIPP_PIPE2, DCMIPP_VIRTUAL_CHANNEL0,
-      (uint32_t)nn_capture[0], (uint32_t)nn_capture[1],
-      DCMIPP_MODE_CONTINUOUS);
-  if (dbg_pipe2_start_ret != HAL_OK)
+  pipe2_consumed = pipe2_frame_count;
+  if (HAL_DCMIPP_CSI_PIPE_DoubleBufferStart(
+          &hdcmipp, DCMIPP_PIPE2, DCMIPP_VIRTUAL_CHANNEL0,
+          (uint32_t)nn_capture[0], (uint32_t)nn_capture[1],
+          DCMIPP_MODE_CONTINUOUS) != HAL_OK)
   {
     Error_Handler();
   }
   cam_last_tick   = HAL_GetTick();
-  cam_last_frames = dbg_frame_count;
+  cam_last_frames = cam_frame_count;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -443,13 +430,13 @@ int main(void)
   {
 	if (ISP_BackgroundProcess(&hcamera_isp) != ISP_OK)
 	{
-		BSP_LED_Toggle(LED_RED);   /* or your own error indicator */
+		BSP_LED_Toggle(LED_RED);
 	}
 
-	while (dbg_pipe2_frame_count == pipe2_consumed) {}
+	while (pipe2_frame_count == pipe2_consumed) {}
 
 	{
-	  uint32_t ready = dbg_pipe2_frame_count;
+	  uint32_t ready = pipe2_frame_count;
 	  uint32_t idx   = (ready - 1u) & 1u;
 	  pipe2_consumed = ready;
 
@@ -459,20 +446,22 @@ int main(void)
 	}
 
 	uint32_t t0 = HAL_GetTick();
-	dbg_infer_ret = stai_network_run(network_context, STAI_MODE_SYNC);
-	dbg_infer_ms  = HAL_GetTick() - t0;
+	if (stai_network_run(network_context, STAI_MODE_SYNC) != STAI_SUCCESS)
+	{
+		BSP_LED_Toggle(LED_RED);
+	}
+	infer_ms = HAL_GetTick() - t0;
 
 	for (int i = 0; i < (int)n_out; i++)
 	  SCB_InvalidateDCache_by_Addr(nn_out[i], nn_out_len[i]);
 
-	dbg_pp_ret    = app_postprocess_run((void **)nn_out, (int)n_out, &pp_output, &pp_params);
-	dbg_nb_detect = pp_output.nb_detect;
+	(void)app_postprocess_run((void **)nn_out, (int)n_out, &pp_output, &pp_params);
 
 	{
 	  uint32_t now = HAL_GetTick();
 	  uint32_t dt  = now - loop_last_tick;
 	  loop_last_tick = now;
-	  dbg_fps = (dt > 0u) ? (1000u / dt) : 0u;
+	  det_fps = (dt > 0u) ? (1000u / dt) : 0u;
 	}
 
 	{
@@ -480,14 +469,14 @@ int main(void)
 	  uint32_t dt  = now - cam_last_tick;
 	  if (dt >= 1000u)
 	  {
-	    uint32_t frames = dbg_frame_count - cam_last_frames;
-	    dbg_cam_fps     = (frames * 1000u) / dt;
-	    cam_last_frames = dbg_frame_count;
+	    uint32_t frames = cam_frame_count - cam_last_frames;
+	    cam_fps         = (frames * 1000u) / dt;
+	    cam_last_frames = cam_frame_count;
 	    cam_last_tick   = now;
 	  }
 	}
 
-	Display_NetworkOutput(&pp_output, dbg_infer_ms, dbg_fps, dbg_cam_fps);
+	Display_NetworkOutput(&pp_output, infer_ms, det_fps, cam_fps);
 
 	BSP_LED_Toggle(LED_GREEN);
     /* USER CODE END WHILE */
@@ -1029,13 +1018,12 @@ void HAL_DCMIPP_PIPE_FrameEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t 
   UNUSED(hdcmipp);
   if (Pipe == DCMIPP_PIPE1)
   {
-    dbg_frame_count++;
+    cam_frame_count++;
   }
 
   if (Pipe == DCMIPP_PIPE2)
   {
-    pipe2_frame_ready = 1;
-    dbg_pipe2_frame_count++;
+    pipe2_frame_count++;
   }
 }
 void HAL_DCMIPP_PIPE_VsyncEventCallback(DCMIPP_HandleTypeDef *hdcmipp, uint32_t Pipe)
@@ -1087,7 +1075,7 @@ static void convert_point(float32_t xi, float32_t yi, int *xo, int *yo)
   *yo = lcd_bg_area.YSize * yi + lcd_bg_area.Y0;
 }
 
-void Display_Face(fd_pp_outBuffer_t *detect)
+static void Display_Face(fd_pp_outBuffer_t *detect)
 {
   int xc, yc, x0, y0, x1, y1, w, h, i;
 
