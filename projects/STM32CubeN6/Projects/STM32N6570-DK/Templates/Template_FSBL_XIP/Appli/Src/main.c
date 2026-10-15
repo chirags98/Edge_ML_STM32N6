@@ -70,6 +70,10 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define NN_INPUT_CH      3
 #define NN_INPUT_SIZE    (NN_INPUT_WIDTH * NN_INPUT_HEIGHT * NN_INPUT_CH)  /* 49152 */
 
+#define POSE_INPUT_WIDTH   192
+#define POSE_INPUT_HEIGHT  192
+#define POSE_INPUT_SIZE    (POSE_INPUT_WIDTH * POSE_INPUT_HEIGHT * 3)  /* 110592 */
+
 #define LCD_FG_WIDTH     800
 #define LCD_FG_HEIGHT    480
 #define LCD_FG_ADDRESS   0x90200000UL  /* overlay back/front buffer A */
@@ -119,7 +123,8 @@ ISP_HandleTypeDef hcamera_isp;
 
 volatile uint32_t cam_frame_count;
 __attribute__((aligned(32)))
-static uint8_t nn_capture[2][NN_INPUT_SIZE];
+//static uint8_t nn_capture[2][NN_INPUT_SIZE];
+static uint8_t nn_capture[2][POSE_INPUT_SIZE];
 volatile uint32_t pipe2_frame_count;
 static uint32_t pipe2_consumed;
 
@@ -367,12 +372,12 @@ int main(void)
     HAL_DCMIPP_PIPE_SetDecimationConfig(&hdcmipp, DCMIPP_PIPE2, &dec);
     HAL_DCMIPP_PIPE_EnableDecimation(&hdcmipp, DCMIPP_PIPE2);
 
-    down.HSize      = NN_INPUT_WIDTH;
-    down.VSize      = NN_INPUT_HEIGHT;
-    down.HRatio     = DOWNSCALE_RATIO(after_dec, NN_INPUT_WIDTH);
-    down.VRatio     = DOWNSCALE_RATIO(after_dec, NN_INPUT_HEIGHT);
-    down.HDivFactor = DIV_FACTOR(after_dec, NN_INPUT_WIDTH);
-    down.VDivFactor = DIV_FACTOR(after_dec, NN_INPUT_HEIGHT);
+    down.HSize      = POSE_INPUT_WIDTH;
+    down.VSize      = POSE_INPUT_HEIGHT;
+    down.HRatio     = DOWNSCALE_RATIO(after_dec, POSE_INPUT_WIDTH);
+    down.VRatio     = DOWNSCALE_RATIO(after_dec, POSE_INPUT_HEIGHT);
+    down.HDivFactor = DIV_FACTOR(after_dec, POSE_INPUT_WIDTH);
+    down.VDivFactor = DIV_FACTOR(after_dec, POSE_INPUT_HEIGHT);
     HAL_DCMIPP_PIPE_SetDownsizeConfig(&hdcmipp, DCMIPP_PIPE2, &down);
     HAL_DCMIPP_PIPE_EnableDownsize(&hdcmipp, DCMIPP_PIPE2);
     HAL_DCMIPP_PIPE_EnableRedBlueSwap(&hdcmipp, DCMIPP_PIPE2);
@@ -460,8 +465,29 @@ int main(void)
 	  uint32_t idx   = (ready - 1u) & 1u;
 	  pipe2_consumed = ready;
 
-	  SCB_InvalidateDCache_by_Addr(nn_capture[idx], NN_INPUT_SIZE);
-	  memcpy(nn_in, nn_capture[idx], NN_INPUT_SIZE);
+//	  SCB_InvalidateDCache_by_Addr(nn_capture[idx], NN_INPUT_SIZE);
+//	  memcpy(nn_in, nn_capture[idx], NN_INPUT_SIZE);
+//	  SCB_CleanInvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
+
+	  SCB_InvalidateDCache_by_Addr(nn_capture[idx], POSE_INPUT_SIZE);
+
+	  {
+	    uint8_t *dst = (uint8_t *)nn_in;
+	    for (int y = 0; y < NN_INPUT_HEIGHT; y++) {
+	      int sy = (y * POSE_INPUT_HEIGHT) / NN_INPUT_HEIGHT;
+	      const uint8_t *srow = nn_capture[idx] + (sy * POSE_INPUT_WIDTH * 3);
+	      uint8_t *drow = dst + (y * NN_INPUT_WIDTH * 3);
+	      for (int x = 0; x < NN_INPUT_WIDTH; x++) {
+	        int sx = (x * POSE_INPUT_WIDTH) / NN_INPUT_WIDTH;
+	        const uint8_t *sp = srow + (sx * 3);
+	        drow[0] = sp[0];
+	        drow[1] = sp[1];
+	        drow[2] = sp[2];
+	        drow += 3;
+	      }
+	    }
+	  }
+
 	  SCB_CleanInvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
 	}
 
@@ -562,7 +588,7 @@ static void MX_DCMIPP_Init(void)
   {
     Error_Handler();
   }
-  pPipeConfig.PixelPipePitch = 384;
+  pPipeConfig.PixelPipePitch = 576;
   pPipeConfig.PixelPackerFormat = DCMIPP_PIXEL_PACKER_FORMAT_RGB888_YUV444_1;
   if (HAL_DCMIPP_PIPE_SetConfig(&hdcmipp, DCMIPP_PIPE2, &pPipeConfig) != HAL_OK)
   {

@@ -52,9 +52,19 @@
 			<locationURI>PARENT-2-PROJECT_LOC/Model/network.c</locationURI>
 		</link>
 		<link>
+			<name>Model/pose.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Model/Pose/pose.c</locationURI>
+		</link>
+		<link>
 			<name>Model/stai_network.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/Model/stai_network.c</locationURI>
+		</link>
+		<link>
+			<name>Model/stai_pose.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Model/Pose/stai_pose.c</locationURI>
 		</link>
 		<link>
 			<name>Src/main.c</name>

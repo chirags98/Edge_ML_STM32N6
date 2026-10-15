@@ -43,8 +43,8 @@ _sstack = _estack - _Min_Stack_Size;
 /* Memories definition */
 MEMORY
 {
-  ROM    (xrw)    : ORIGIN = 0x70100400,   LENGTH = 511K
-  RAM    (xrw)    : ORIGIN = 0x34000000,   LENGTH = 2048K
+  ROM    (xrw)    : ORIGIN = 0x70100400,   LENGTH = 0x270000
+  RAM    (xrw)    : ORIGIN = 0x34000000,   LENGTH = 1024K
 }
 
 /* Sections */
