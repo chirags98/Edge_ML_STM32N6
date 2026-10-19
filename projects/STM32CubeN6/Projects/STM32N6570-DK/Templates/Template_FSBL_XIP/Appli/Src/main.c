@@ -92,8 +92,9 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define FONT_SY 2
 #define HUD_X 8
 #define HUD_Y 8
-#define HUD_W 280
-#define HUD_H 40
+#define HUD_W 240
+#define HUD_H 200
+#define HUD_LINE 16
 /* 3 faces × (4 box edges + 6 keypoints) + HUD, plus slack */
 #define DIRTY_MAX 80
 /* USER CODE END PD */
@@ -133,10 +134,22 @@ STAI_NETWORK_CONTEXT_DECLARE(network_context, STAI_NETWORK_CONTEXT_SIZE);
 stai_ptr nn_in;
 stai_ptr nn_out[STAI_NETWORK_OUT_NUM];
 
-static uint32_t infer_ms;
-static uint32_t det_fps;
+typedef struct {
+  uint32_t fps;
+  uint32_t isp;
+  uint32_t wait;
+  uint32_t fprep;
+  uint32_t fnpu;
+  uint32_t fpp;
+  uint32_t pprep;
+  uint32_t pnpu;
+  uint32_t ppp;
+  uint32_t draw;
+  uint32_t loop;
+} FrameTimes_t;
+
+static FrameTimes_t hud_times;
 static uint32_t cam_fps;
-static uint32_t loop_last_tick;
 static uint32_t cam_last_tick;
 static uint32_t cam_last_frames;
 
@@ -207,8 +220,11 @@ static void convert_point(float32_t xi, float32_t yi, int *xo, int *yo);
 static void Display_keypoint(fd_pp_keyPoints_t *key, uint16_t color);
 static void Display_Face(fd_pp_outBuffer_t *detect);
 static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
-                                  uint32_t infer_ms, uint32_t det_fps,
+                                  const FrameTimes_t *times,
                                   uint32_t cam_fps);
+static void cycle_timer_init(void);
+static uint32_t cycle_now(void);
+static uint32_t cycles_to_tenth_ms(uint32_t cycles);
 static void overlay_Clear(void);
 static void overlay_MarkDirty(int x, int y, int w, int h);
 static void overlay_ClearDirty(void);
@@ -227,7 +243,27 @@ static void overlay_DrawLine(int x0, int y0, int x1, int y1, uint16_t c);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void cycle_timer_init(void)
+{
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
 
+static uint32_t cycle_now(void)
+{
+  return DWT->CYCCNT;
+}
+
+/* 0.1 ms units. SystemCoreClock / 10000 is the number of CPU cycles in 0.1 ms. */
+static uint32_t cycles_to_tenth_ms(uint32_t cycles)
+{
+  uint32_t per_tenth = SystemCoreClock / 10000u;
+
+  if (per_tenth == 0u)
+    return 0u;
+  return cycles / per_tenth;
+}
 /* USER CODE END 0 */
 
 /**
@@ -492,27 +528,33 @@ int main(void)
   }
   cam_last_tick   = HAL_GetTick();
   cam_last_frames = cam_frame_count;
+  cycle_timer_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	FrameTimes_t cur;
+	uint32_t t_loop = cycle_now();
+	uint32_t t0;
+
+	t0 = cycle_now();
 	if (ISP_BackgroundProcess(&hcamera_isp) != ISP_OK)
 	{
 		BSP_LED_Toggle(LED_RED);
 	}
+	cur.isp = cycles_to_tenth_ms(cycle_now() - t0);
 
+	t0 = cycle_now();
 	while (pipe2_frame_count == pipe2_consumed) {}
+	cur.wait = cycles_to_tenth_ms(cycle_now() - t0);
 
+	t0 = cycle_now();
 	{
 	  uint32_t ready = pipe2_frame_count;
 	  uint32_t idx   = (ready - 1u) & 1u;
 	  pipe2_consumed = ready;
-
-//	  SCB_InvalidateDCache_by_Addr(nn_capture[idx], NN_INPUT_SIZE);
-//	  memcpy(nn_in, nn_capture[idx], NN_INPUT_SIZE);
-//	  SCB_CleanInvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
 
 	  SCB_InvalidateDCache_by_Addr(nn_capture[idx], POSE_INPUT_SIZE);
 
@@ -536,38 +578,40 @@ int main(void)
 	  SCB_CleanInvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
 	  pose_frame = nn_capture[idx];
 	}
+	cur.fprep = cycles_to_tenth_ms(cycle_now() - t0);
 
-	uint32_t t0 = HAL_GetTick();
+	t0 = cycle_now();
 	if (stai_network_run(network_context, STAI_MODE_SYNC) != STAI_SUCCESS)
 	{
 		BSP_LED_Toggle(LED_RED);
 	}
-	infer_ms = HAL_GetTick() - t0;
+	cur.fnpu = cycles_to_tenth_ms(cycle_now() - t0);
 
+	t0 = cycle_now();
 	for (int i = 0; i < (int)n_out; i++)
 	  SCB_InvalidateDCache_by_Addr(nn_out[i], nn_out_len[i]);
 
 	(void)app_postprocess_run((void **)nn_out, (int)n_out, &pp_output, &pp_params);
+	cur.fpp = cycles_to_tenth_ms(cycle_now() - t0);
+
+	t0 = cycle_now();
+	memcpy(pose_in, pose_frame, POSE_INPUT_SIZE);
+	SCB_CleanInvalidateDCache_by_Addr(pose_in, POSE_INPUT_SIZE);
+	cur.pprep = cycles_to_tenth_ms(cycle_now() - t0);
+
+	t0 = cycle_now();
+	if (stai_pose_run(pose_context, STAI_MODE_SYNC) != STAI_SUCCESS)
+	  BSP_LED_Toggle(LED_RED);
+	cur.pnpu = cycles_to_tenth_ms(cycle_now() - t0);
+
+	t0 = cycle_now();
+	SCB_InvalidateDCache_by_Addr(pose_out, 29952);
 
 	{
-		memcpy(pose_in, pose_frame, POSE_INPUT_SIZE);
-		SCB_CleanInvalidateDCache_by_Addr(pose_in, POSE_INPUT_SIZE);
-
-		if (stai_pose_run(pose_context, STAI_MODE_SYNC) != STAI_SUCCESS)
-		  BSP_LED_Toggle(LED_RED);
-
-		SCB_InvalidateDCache_by_Addr(pose_out, 29952);
-
 		spe_movenet_pp_in_t pose_pp_in = { .inBuff = pose_out };
 		(void)spe_movenet_pp_process_int8(&pose_pp_in, &pose_pp_out, &pose_pp_params);
 	}
-
-	{
-	  uint32_t now = HAL_GetTick();
-	  uint32_t dt  = now - loop_last_tick;
-	  loop_last_tick = now;
-	  det_fps = (dt > 0u) ? (1000u / dt) : 0u;
-	}
+	cur.ppp = cycles_to_tenth_ms(cycle_now() - t0);
 
 	{
 	  uint32_t now = HAL_GetTick();
@@ -581,7 +625,12 @@ int main(void)
 	  }
 	}
 
-	Display_NetworkOutput(&pp_output, infer_ms, det_fps, cam_fps);
+	t0 = cycle_now();
+	Display_NetworkOutput(&pp_output, &hud_times, cam_fps);
+	cur.draw = cycles_to_tenth_ms(cycle_now() - t0);
+	cur.loop = cycles_to_tenth_ms(cycle_now() - t_loop);
+	cur.fps = (cur.loop > 0u) ? (10000u / cur.loop) : 0u;
+	hud_times = cur;
 
 	BSP_LED_Toggle(LED_GREEN);
     /* USER CODE END WHILE */
@@ -1223,12 +1272,37 @@ static int u32_to_str(char *dst, uint32_t v)
   return n;
 }
 
+static int tenth_ms_to_str(char *dst, uint32_t tenth)
+{
+  uint32_t whole = tenth / 10u;
+  uint32_t frac = tenth % 10u;
+  int n = u32_to_str(dst, whole);
+
+  dst[n++] = '.';
+  dst[n++] = (char)('0' + frac);
+  return n;
+}
+
+static void hud_ms_line(int y, const char *label, uint32_t tenth_ms)
+{
+  char line[24];
+  char *p = line;
+
+  while (*label)
+    *p++ = *label++;
+  *p++ = ' ';
+  p += tenth_ms_to_str(p, tenth_ms);
+  *p = '\0';
+  overlay_DrawString(12, y, line, ARGB4444_WHITE);
+}
+
 static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
-                                  uint32_t infer_ms, uint32_t det_fps,
+                                  const FrameTimes_t *times,
                                   uint32_t cam_fps)
 {
-  char line[32];
+  char line[24];
   char *p;
+  int y = HUD_Y + 4;
 
   //face
   overlay_ClearDirty();
@@ -1250,9 +1324,9 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   for (int i = 0; i < 13; i++) {
     if (pose_kpts[i].proba < 0.5f)
       continue;
-    int x, y;
-    convert_point(pose_kpts[i].x_center, pose_kpts[i].y_center, &x, &y);
-    overlay_FillCircle(x, y, CIRCLE_RADIUS, ARGB4444_WHITE);
+    int x, yk;
+    convert_point(pose_kpts[i].x_center, pose_kpts[i].y_center, &x, &yk);
+    overlay_FillCircle(x, yk, CIRCLE_RADIUS, ARGB4444_WHITE);
   }
 
   //Face
@@ -1263,20 +1337,29 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   overlay_MarkDirty(HUD_X, HUD_Y, HUD_W, HUD_H);
 
   p = line;
-  memcpy(p, "INF ", 4); p += 4;
-  p += u32_to_str(p, infer_ms);
-  memcpy(p, " MS  ", 5); p += 5;
-  p += u32_to_str(p, det_fps);
-  memcpy(p, " FPS", 4); p += 4;
+  memcpy(p, "FPS ", 4); p += 4;
+  p += u32_to_str(p, times->fps);
   *p = '\0';
-  overlay_DrawString(12, 10, line, ARGB4444_WHITE);
+  overlay_DrawString(12, y, line, ARGB4444_WHITE);
+  y += HUD_LINE;
 
   p = line;
   memcpy(p, "CAM ", 4); p += 4;
   p += u32_to_str(p, cam_fps);
-  memcpy(p, " FPS", 4); p += 4;
   *p = '\0';
-  overlay_DrawString(12, 27, line, ARGB4444_WHITE);
+  overlay_DrawString(12, y, line, ARGB4444_WHITE);
+  y += HUD_LINE;
+
+  hud_ms_line(y, "ISP", times->isp);     y += HUD_LINE;
+  hud_ms_line(y, "WAIT", times->wait);   y += HUD_LINE;
+  hud_ms_line(y, "FPREP", times->fprep); y += HUD_LINE;
+  hud_ms_line(y, "FNPU", times->fnpu);   y += HUD_LINE;
+  hud_ms_line(y, "FPP", times->fpp);     y += HUD_LINE;
+  hud_ms_line(y, "PPREP", times->pprep); y += HUD_LINE;
+  hud_ms_line(y, "PNPU", times->pnpu);   y += HUD_LINE;
+  hud_ms_line(y, "PPP", times->ppp);     y += HUD_LINE;
+  hud_ms_line(y, "DRAW", times->draw);   y += HUD_LINE;
+  hud_ms_line(y, "LOOP", times->loop);
 
   /* Drawing complete — schedule a VBLANK swap so LTDC picks up the finished
      buffer at the start of the next frame, never mid-scan. */
@@ -1354,6 +1437,15 @@ static const uint8_t font5x7[64][5] = {
   ['N' - 32] = {0x7F, 0x04, 0x08, 0x10, 0x7F},
   ['P' - 32] = {0x7F, 0x09, 0x09, 0x09, 0x06},
   ['S' - 32] = {0x26, 0x49, 0x49, 0x49, 0x32},
+  ['.' - 32] = {0x00, 0x00, 0x60, 0x60, 0x00},
+  ['D' - 32] = {0x7F, 0x41, 0x41, 0x41, 0x3E},
+  ['E' - 32] = {0x7F, 0x49, 0x49, 0x49, 0x41},
+  ['L' - 32] = {0x7F, 0x40, 0x40, 0x40, 0x40},
+  ['O' - 32] = {0x3E, 0x41, 0x41, 0x41, 0x3E},
+  ['R' - 32] = {0x7F, 0x09, 0x19, 0x29, 0x46},
+  ['T' - 32] = {0x01, 0x01, 0x7F, 0x01, 0x01},
+  ['U' - 32] = {0x3F, 0x40, 0x40, 0x40, 0x3F},
+  ['W' - 32] = {0x3F, 0x40, 0x38, 0x40, 0x3F},
 };
 
 static void overlay_FillRect(int x, int y, int w, int h, uint16_t c)
