@@ -35,6 +35,7 @@
 #include <string.h>
 
 #include "app_config.h"
+#include "spe_movenet_pp_if.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,7 +95,7 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define HUD_W 280
 #define HUD_H 40
 /* 3 faces × (4 box edges + 6 keypoints) + HUD, plus slack */
-#define DIRTY_MAX 40
+#define DIRTY_MAX 80
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -154,6 +155,27 @@ typedef struct {
 static DirtyRect_t dirty_list[2][DIRTY_MAX];
 static uint32_t    dirty_count[2];
 static uint32_t    lcd_fg_wr_idx;   /* 0 or 1 — index of the write buffer */
+
+STAI_NETWORK_CONTEXT_DECLARE(pose_context, STAI_NETWORK_CONTEXT_SIZE);
+static stai_ptr pose_in;
+static stai_ptr pose_out;
+static const uint8_t *pose_frame;
+static spe_movenet_pp_static_param_t pose_pp_params;
+static spe_pp_outBuffer_t pose_kpts[13];
+static spe_pp_out_t pose_pp_out;
+
+static const uint8_t pose_bones[14][2] = {
+  {11, 9}, {9, 7}, {12, 10}, {10, 8},
+  {7, 8}, {1, 7}, {2, 8},
+  {0, 1}, {0, 2}, {1, 2},
+  {1, 3}, {2, 4}, {3, 5}, {4, 6}
+};
+static const uint16_t pose_bone_color[14] = {
+  0xFF80, 0xFF80, 0xFF80, 0xFF80,
+  0xF0FF, 0xF0FF, 0xF0FF,
+  ARGB4444_GREEN, ARGB4444_GREEN, 0xF00F,
+  0xF00F, 0xF00F, 0xF00F, 0xF00F
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -194,6 +216,13 @@ static void overlay_DrawRect(int x, int y, int w, int h, uint16_t c);
 static void overlay_FillCircle(int x, int y, int r, uint16_t c);
 static void overlay_FillRect(int x, int y, int w, int h, uint16_t c);
 static void overlay_DrawString(int x, int y, const char *s, uint16_t fgcol);
+
+stai_return_code stai_pose_init(stai_network *network);
+stai_return_code stai_pose_run(stai_network *network, const stai_run_mode mode);
+stai_return_code stai_pose_get_inputs(stai_network *network, stai_ptr *inputs, stai_size *n_inputs);
+stai_return_code stai_pose_get_outputs(stai_network *network, stai_ptr *outputs, stai_size *n_outputs);
+
+static void overlay_DrawLine(int x0, int y0, int x1, int y1, uint16_t c);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -320,6 +349,22 @@ int main(void)
   {
     Error_Handler();
   }
+
+  if (stai_pose_init(pose_context) != STAI_SUCCESS)
+    Error_Handler();
+
+  stai_size pose_n = 1;
+  stai_pose_get_inputs(pose_context, &pose_in, &pose_n);
+  pose_n = 1;
+  stai_pose_get_outputs(pose_context, &pose_out, &pose_n);
+
+  pose_pp_params.raw_scale = 0.00390625f;
+  pose_pp_params.raw_zero_point = -128;
+  pose_pp_params.heatmap_width = 48;
+  pose_pp_params.heatmap_height = 48;
+  pose_pp_params.nb_keypoints = 13;
+  spe_movenet_pp_reset(&pose_pp_params);
+  pose_pp_out.pOutBuff = pose_kpts;
 
   stai_size n_in = 1;
   stai_network_get_inputs(network_context, &nn_in, &n_in);
@@ -489,6 +534,7 @@ int main(void)
 	  }
 
 	  SCB_CleanInvalidateDCache_by_Addr(nn_in, NN_INPUT_SIZE);
+	  pose_frame = nn_capture[idx];
 	}
 
 	uint32_t t0 = HAL_GetTick();
@@ -502,6 +548,19 @@ int main(void)
 	  SCB_InvalidateDCache_by_Addr(nn_out[i], nn_out_len[i]);
 
 	(void)app_postprocess_run((void **)nn_out, (int)n_out, &pp_output, &pp_params);
+
+	{
+		memcpy(pose_in, pose_frame, POSE_INPUT_SIZE);
+		SCB_CleanInvalidateDCache_by_Addr(pose_in, POSE_INPUT_SIZE);
+
+		if (stai_pose_run(pose_context, STAI_MODE_SYNC) != STAI_SUCCESS)
+		  BSP_LED_Toggle(LED_RED);
+
+		SCB_InvalidateDCache_by_Addr(pose_out, 29952);
+
+		spe_movenet_pp_in_t pose_pp_in = { .inBuff = pose_out };
+		(void)spe_movenet_pp_process_int8(&pose_pp_in, &pose_pp_out, &pose_pp_params);
+	}
 
 	{
 	  uint32_t now = HAL_GetTick();
@@ -1171,7 +1230,32 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   char line[32];
   char *p;
 
+  //face
   overlay_ClearDirty();
+
+  for (int i = 0; i < 14; i++) {
+    spe_pp_outBuffer_t *a = &pose_kpts[pose_bones[i][0]];
+    spe_pp_outBuffer_t *b = &pose_kpts[pose_bones[i][1]];
+    int x0, y0, x1, y1;
+    if (a->proba < 0.5f || b->proba < 0.5f)
+      continue;
+    convert_point(a->x_center, a->y_center, &x0, &y0);
+    convert_point(b->x_center, b->y_center, &x1, &y1);
+    if (clamp_point(&x0, &y0) || clamp_point(&x1, &y1))
+      continue;
+    overlay_DrawLine(x0, y0, x1, y1, pose_bone_color[i]);
+  }
+
+  //pose
+  for (int i = 0; i < 13; i++) {
+    if (pose_kpts[i].proba < 0.5f)
+      continue;
+    int x, y;
+    convert_point(pose_kpts[i].x_center, pose_kpts[i].y_center, &x, &y);
+    overlay_FillCircle(x, y, CIRCLE_RADIUS, ARGB4444_WHITE);
+  }
+
+  //Face
   for (int32_t i = 0; i < p_postprocess->nb_detect; i++)
     Display_Face(&p_postprocess->pOutBuff[i]);
 
@@ -1389,6 +1473,31 @@ static void Display_keypoint(fd_pp_keyPoints_t *key, uint16_t color)
     return;
 
   overlay_FillCircle(x, y, CIRCLE_RADIUS, color);
+}
+
+static void overlay_DrawLine(int x0, int y0, int x1, int y1, uint16_t c)
+{
+  int dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
+  int dy = (y1 > y0) ? (y0 - y1) : (y1 - y0);
+  int sx = (x0 < x1) ? 1 : -1;
+  int sy = (y0 < y1) ? 1 : -1;
+  int err = dx + dy;
+  int minx = (x0 < x1) ? x0 : x1;
+  int miny = (y0 < y1) ? y0 : y1;
+  int maxx = (x0 > x1) ? x0 : x1;
+  int maxy = (y0 > y1) ? y0 : y1;
+  uint16_t *p = fg();
+
+  for (;;) {
+    if ((unsigned)x0 < LCD_FG_WIDTH && (unsigned)y0 < LCD_FG_HEIGHT)
+      p[y0 * LCD_FG_WIDTH + x0] = c;
+    if (x0 == x1 && y0 == y1)
+      break;
+    int e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+  overlay_MarkDirty(minx, miny, maxx - minx + 1, maxy - miny + 1);
 }
 /* USER CODE END 4 */
 

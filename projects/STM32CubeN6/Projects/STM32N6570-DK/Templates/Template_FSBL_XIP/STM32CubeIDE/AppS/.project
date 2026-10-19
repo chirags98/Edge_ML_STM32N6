@@ -72,6 +72,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/Appli/Src/main.c</locationURI>
 		</link>
 		<link>
+			<name>Src/spe_movenet_pp.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Appli/Src/spe_movenet_pp.c</locationURI>
+		</link>
+		<link>
 			<name>Src/stm32n6xx_hal_msp.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/Appli/Src/stm32n6xx_hal_msp.c</locationURI>
@@ -85,6 +90,11 @@
 			<name>Src/system_stm32n6xx_s.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/Appli/Src/system_stm32n6xx_s.c</locationURI>
+		</link>
+		<link>
+			<name>Src/vision_models_pp_maxi_is8.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Appli/Src/vision_models_pp_maxi_is8.c</locationURI>
 		</link>
 		<link>
 			<name>Drivers/CMSIS/system_stm32n6xx_fsbl.c</name>
