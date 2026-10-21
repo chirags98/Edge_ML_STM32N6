@@ -232,6 +232,10 @@ static void overlay_DrawRect(int x, int y, int w, int h, uint16_t c);
 static void overlay_FillCircle(int x, int y, int r, uint16_t c);
 static void overlay_FillRect(int x, int y, int w, int h, uint16_t c);
 static void overlay_DrawString(int x, int y, const char *s, uint16_t fgcol);
+static void hud_begin(void);
+static void hud_string(int x, int y, const char *s, uint16_t fgcol);
+static void hud_blit(void);
+static uint16_t *fg(void);
 
 stai_return_code stai_pose_init(stai_network *network);
 stai_return_code stai_pose_run(stai_network *network, const stai_run_mode mode);
@@ -1293,7 +1297,7 @@ static void hud_ms_line(int y, const char *label, uint32_t tenth_ms)
   *p++ = ' ';
   p += tenth_ms_to_str(p, tenth_ms);
   *p = '\0';
-  overlay_DrawString(12, y, line, ARGB4444_WHITE);
+  hud_string(4, y, line, ARGB4444_WHITE);
 }
 
 static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
@@ -1302,7 +1306,7 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
 {
   char line[24];
   char *p;
-  int y = HUD_Y + 4;
+  int y = 4;
 
   //face
   overlay_ClearDirty();
@@ -1333,21 +1337,22 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   for (int32_t i = 0; i < p_postprocess->nb_detect; i++)
     Display_Face(&p_postprocess->pOutBuff[i]);
 
-  overlay_FillRect(HUD_X, HUD_Y, HUD_W, HUD_H, ARGB4444_HUD_BG);
-  overlay_MarkDirty(HUD_X, HUD_Y, HUD_W, HUD_H);
+  /* Compose the timing panel in internal RAM. Per-pixel stores to the
+     PSRAM overlay are what made DRAW ~70 ms. */
+  hud_begin();
 
   p = line;
   memcpy(p, "FPS ", 4); p += 4;
   p += u32_to_str(p, times->fps);
   *p = '\0';
-  overlay_DrawString(12, y, line, ARGB4444_WHITE);
+  hud_string(4, y, line, ARGB4444_WHITE);
   y += HUD_LINE;
 
   p = line;
   memcpy(p, "CAM ", 4); p += 4;
   p += u32_to_str(p, cam_fps);
   *p = '\0';
-  overlay_DrawString(12, y, line, ARGB4444_WHITE);
+  hud_string(4, y, line, ARGB4444_WHITE);
   y += HUD_LINE;
 
   hud_ms_line(y, "ISP", times->isp);     y += HUD_LINE;
@@ -1360,6 +1365,7 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   hud_ms_line(y, "PPP", times->ppp);     y += HUD_LINE;
   hud_ms_line(y, "DRAW", times->draw);   y += HUD_LINE;
   hud_ms_line(y, "LOOP", times->loop);
+  hud_blit();
 
   /* Drawing complete — schedule a VBLANK swap so LTDC picks up the finished
      buffer at the start of the next frame, never mid-scan. */
@@ -1451,7 +1457,7 @@ static const uint8_t font5x7[64][5] = {
 static void overlay_FillRect(int x, int y, int w, int h, uint16_t c)
 {
   uint16_t *p = fg();
-  int xx, yy;
+  int yy;
 
   if (x < 0) { w += x; x = 0; }
   if (y < 0) { h += y; y = 0; }
@@ -1466,9 +1472,17 @@ static void overlay_FillRect(int x, int y, int w, int h, uint16_t c)
     return;
   }
 
-  for (yy = 0; yy < h; yy++)
-    for (xx = 0; xx < w; xx++)
-      p[(y + yy) * LCD_FG_WIDTH + x + xx] = c;
+  /* Build one solid row in internal RAM, then copy it. A per-pixel store to
+     this PSRAM buffer is an uncached bus transaction; memcpy bursts the row. */
+  {
+    static uint16_t solid_row[LCD_FG_WIDTH];
+    int i;
+
+    for (i = 0; i < w; i++)
+      solid_row[i] = c;
+    for (yy = 0; yy < h; yy++)
+      memcpy(&p[(y + yy) * LCD_FG_WIDTH + x], solid_row, (size_t)w * sizeof(uint16_t));
+  }
 }
 
 static void overlay_DrawChar(int x, int y, char ch, uint16_t fgcol)
@@ -1502,6 +1516,69 @@ static void overlay_DrawString(int x, int y, const char *s, uint16_t fgcol)
   while (*s) {
     overlay_DrawChar(x, y, *s++, fgcol);
     x += advance;
+  }
+}
+
+/* Timing panel, built in internal RAM and copied to the overlay in rows.
+   HUD_W * HUD_H * 2 = 96 KB. */
+static uint16_t hud_buf[HUD_W * HUD_H] __attribute__((aligned(4)));
+
+static void hud_begin(void)
+{
+  uint32_t packed = ((uint32_t)ARGB4444_HUD_BG << 16) | (uint32_t)ARGB4444_HUD_BG;
+  uint32_t *p = (uint32_t *)hud_buf;
+  uint32_t n = (HUD_W * HUD_H) / 2u;
+  uint32_t i;
+
+  for (i = 0; i < n; i++)
+    p[i] = packed;
+}
+
+static void hud_put(int x, int y, uint16_t c)
+{
+  if ((unsigned)x < HUD_W && (unsigned)y < HUD_H)
+    hud_buf[(uint32_t)y * HUD_W + (uint32_t)x] = c;
+}
+
+static void hud_char(int x, int y, char ch, uint16_t fgcol)
+{
+  const uint8_t *col;
+  int cx, cy, sx, sy;
+
+  if (ch < 32 || ch > 90)
+    ch = ' ';
+  col = font5x7[ch - 32];
+  for (cx = 0; cx < FONT_W; cx++) {
+    for (cy = 0; cy < FONT_H; cy++) {
+      if (col[cx] & (1u << cy)) {
+        for (sy = 0; sy < FONT_SY; sy++) {
+          for (sx = 0; sx < FONT_SX; sx++)
+            hud_put(x + cx * FONT_SX + sx, y + cy * FONT_SY + sy, fgcol);
+        }
+      }
+    }
+  }
+}
+
+static void hud_string(int x, int y, const char *s, uint16_t fgcol)
+{
+  int advance = (FONT_W + 1) * FONT_SX;
+
+  while (*s) {
+    hud_char(x, y, *s++, fgcol);
+    x += advance;
+  }
+}
+
+static void hud_blit(void)
+{
+  uint16_t *dst = fg();
+  int row;
+
+  for (row = 0; row < HUD_H; row++) {
+    memcpy(&dst[(HUD_Y + row) * LCD_FG_WIDTH + HUD_X],
+           &hud_buf[(uint32_t)row * HUD_W],
+           HUD_W * sizeof(uint16_t));
   }
 }
 
