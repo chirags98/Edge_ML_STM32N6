@@ -96,8 +96,6 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define HUD_H 56
 #define HUD_LINE 16
 #define HUD_REFRESH_MS 250
-/* DRAW probe: 7 s each of bones/joints/face-dots combinations. HUD always on. */
-#define DRAW_PROBE_MS 7000u
 /* 3 faces × (4 box edges + 6 keypoints) + HUD, plus slack */
 #define DIRTY_MAX 80
 /* USER CODE END PD */
@@ -155,7 +153,6 @@ static FrameTimes_t hud_times;
 static uint32_t cam_fps;
 static uint32_t cam_last_tick;
 static uint32_t hud_last_tick;
-static uint32_t hud_last_phase = 0xFFu;
 static uint32_t cam_last_frames;
 
 fd_blazeface_pp_static_param_t pp_params;
@@ -173,6 +170,15 @@ typedef struct {
 static DirtyRect_t dirty_list[2][DIRTY_MAX];
 static uint32_t    dirty_count[2];
 static uint32_t    lcd_fg_wr_idx;   /* 0 or 1 — index of the write buffer */
+
+/* Previous bone endpoints per overlay buffer. Erase by redrawing the line
+   with 0 instead of filling the axis-aligned box (that box is what made
+   bones several milliseconds of PSRAM memset). */
+typedef struct {
+  int16_t x0, y0, x1, y1;
+  uint8_t used;
+} BoneSeg_t;
+static BoneSeg_t bone_prev[2][14];
 
 STAI_NETWORK_CONTEXT_DECLARE(pose_context, STAI_NETWORK_CONTEXT_SIZE);
 static stai_ptr pose_in;
@@ -223,7 +229,7 @@ static int clamp_point(int *x, int *y);
 static void convert_length(float32_t wi, float32_t hi, int *wo, int *ho);
 static void convert_point(float32_t xi, float32_t yi, int *xo, int *yo);
 static void Display_keypoint(fd_pp_keyPoints_t *key, uint16_t color);
-static void Display_Face(fd_pp_outBuffer_t *detect, int face_dots);
+static void Display_Face(fd_pp_outBuffer_t *detect);
 static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
                                   const FrameTimes_t *times,
                                   uint32_t cam_fps);
@@ -1243,7 +1249,7 @@ static void convert_point(float32_t xi, float32_t yi, int *xo, int *yo)
   *yo = lcd_bg_area.YSize * yi + lcd_bg_area.Y0;
 }
 
-static void Display_Face(fd_pp_outBuffer_t *detect, int face_dots)
+static void Display_Face(fd_pp_outBuffer_t *detect)
 {
   int xc, yc, x0, y0, x1, y1, w, h, i;
 
@@ -1258,11 +1264,8 @@ static void Display_Face(fd_pp_outBuffer_t *detect, int face_dots)
 
   overlay_DrawRect(x0, y0, x1 - x0, y1 - y0, ARGB4444_GREEN);
 
-  if (face_dots)
-  {
-    for (i = 0; i < AI_FD_BLAZEFACE_PP_NB_KEYPOINTS; i++)
-      Display_keypoint(&detect->pKeyPoints[i], ARGB4444_YELLOW);
-  }
+  for (i = 0; i < AI_FD_BLAZEFACE_PP_NB_KEYPOINTS; i++)
+    Display_keypoint(&detect->pKeyPoints[i], ARGB4444_YELLOW);
 }
 
 static int u32_to_str(char *dst, uint32_t v)
@@ -1315,18 +1318,23 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   char line[24];
   char *p;
   int y = 4;
-  uint32_t phase = (HAL_GetTick() / DRAW_PROBE_MS) % 4u;
-  int bones_on = (phase != 1u);
-  int joints_on = (phase != 2u);
-  int face_dots_on = (phase != 3u);
 
   (void)cam_fps;
 
   overlay_ClearDirty();
 
-  if (bones_on)
   {
-    for (int i = 0; i < 14; i++) {
+    uint32_t bidx = lcd_fg_wr_idx;
+    int i;
+
+    for (i = 0; i < 14; i++) {
+      if (bone_prev[bidx][i].used)
+        overlay_DrawLine(bone_prev[bidx][i].x0, bone_prev[bidx][i].y0,
+                         bone_prev[bidx][i].x1, bone_prev[bidx][i].y1, 0);
+      bone_prev[bidx][i].used = 0;
+    }
+
+    for (i = 0; i < 14; i++) {
       spe_pp_outBuffer_t *a = &pose_kpts[pose_bones[i][0]];
       spe_pp_outBuffer_t *b = &pose_kpts[pose_bones[i][1]];
       int x0, y0, x1, y1;
@@ -1337,33 +1345,29 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
       if (clamp_point(&x0, &y0) || clamp_point(&x1, &y1))
         continue;
       overlay_DrawLine(x0, y0, x1, y1, pose_bone_color[i]);
+      bone_prev[bidx][i].x0 = (int16_t)x0;
+      bone_prev[bidx][i].y0 = (int16_t)y0;
+      bone_prev[bidx][i].x1 = (int16_t)x1;
+      bone_prev[bidx][i].y1 = (int16_t)y1;
+      bone_prev[bidx][i].used = 1;
     }
   }
 
-  if (joints_on)
-  {
-    for (int i = 0; i < 13; i++) {
-      if (pose_kpts[i].proba < 0.5f)
-        continue;
-      int x, yk;
-      convert_point(pose_kpts[i].x_center, pose_kpts[i].y_center, &x, &yk);
-      overlay_FillCircle(x, yk, CIRCLE_RADIUS, ARGB4444_WHITE);
-    }
+  for (int i = 0; i < 13; i++) {
+    if (pose_kpts[i].proba < 0.5f)
+      continue;
+    int x, yk;
+    convert_point(pose_kpts[i].x_center, pose_kpts[i].y_center, &x, &yk);
+    overlay_FillCircle(x, yk, CIRCLE_RADIUS, ARGB4444_WHITE);
   }
 
   for (int32_t i = 0; i < p_postprocess->nb_detect; i++)
-    Display_Face(&p_postprocess->pOutBuff[i], face_dots_on);
+    Display_Face(&p_postprocess->pOutBuff[i]);
 
   /* Rebuild digits at 4 Hz. Blit the last panel every frame so both overlay
      buffers show the same numbers and the text does not flicker. */
   {
     uint32_t now = HAL_GetTick();
-
-    if (phase != hud_last_phase)
-    {
-      hud_last_phase = phase;
-      hud_last_tick = 0u;
-    }
 
     if ((hud_last_tick == 0u) || ((now - hud_last_tick) >= HUD_REFRESH_MS))
     {
@@ -1371,9 +1375,6 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
       hud_begin();
 
       p = line;
-      *p++ = 'P';
-      *p++ = (char)('0' + (char)phase);
-      *p++ = ' ';
       memcpy(p, "FPS ", 4); p += 4;
       p += u32_to_str(p, times->fps);
       *p = '\0';
@@ -1680,10 +1681,6 @@ static void overlay_DrawLine(int x0, int y0, int x1, int y1, uint16_t c)
   int sx = (x0 < x1) ? 1 : -1;
   int sy = (y0 < y1) ? 1 : -1;
   int err = dx + dy;
-  int minx = (x0 < x1) ? x0 : x1;
-  int miny = (y0 < y1) ? y0 : y1;
-  int maxx = (x0 > x1) ? x0 : x1;
-  int maxy = (y0 > y1) ? y0 : y1;
   uint16_t *p = fg();
 
   for (;;) {
@@ -1695,7 +1692,6 @@ static void overlay_DrawLine(int x0, int y0, int x1, int y1, uint16_t c)
     if (e2 >= dy) { err += dy; x0 += sx; }
     if (e2 <= dx) { err += dx; y0 += sy; }
   }
-  overlay_MarkDirty(minx, miny, maxx - minx + 1, maxy - miny + 1);
 }
 /* USER CODE END 4 */
 
