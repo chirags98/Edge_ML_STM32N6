@@ -92,9 +92,10 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define FONT_SY 2
 #define HUD_X 8
 #define HUD_Y 8
-#define HUD_W 240
-#define HUD_H 200
+#define HUD_W 128
+#define HUD_H 56
 #define HUD_LINE 16
+#define HUD_REFRESH_MS 250
 /* 3 faces × (4 box edges + 6 keypoints) + HUD, plus slack */
 #define DIRTY_MAX 80
 /* USER CODE END PD */
@@ -151,6 +152,7 @@ typedef struct {
 static FrameTimes_t hud_times;
 static uint32_t cam_fps;
 static uint32_t cam_last_tick;
+static uint32_t hud_last_tick;
 static uint32_t cam_last_frames;
 
 fd_blazeface_pp_static_param_t pp_params;
@@ -1308,6 +1310,8 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   char *p;
   int y = 4;
 
+  (void)cam_fps;
+
   //face
   overlay_ClearDirty();
 
@@ -1337,34 +1341,27 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
   for (int32_t i = 0; i < p_postprocess->nb_detect; i++)
     Display_Face(&p_postprocess->pOutBuff[i]);
 
-  /* Compose the timing panel in internal RAM. Per-pixel stores to the
-     PSRAM overlay are what made DRAW ~70 ms. */
-  hud_begin();
+  /* Rebuild digits at 4 Hz. Blit the last panel every frame so both overlay
+     buffers show the same numbers and the text does not flicker. */
+  {
+    uint32_t now = HAL_GetTick();
 
-  p = line;
-  memcpy(p, "FPS ", 4); p += 4;
-  p += u32_to_str(p, times->fps);
-  *p = '\0';
-  hud_string(4, y, line, ARGB4444_WHITE);
-  y += HUD_LINE;
+    if ((hud_last_tick == 0u) || ((now - hud_last_tick) >= HUD_REFRESH_MS))
+    {
+      hud_last_tick = now;
+      hud_begin();
 
-  p = line;
-  memcpy(p, "CAM ", 4); p += 4;
-  p += u32_to_str(p, cam_fps);
-  *p = '\0';
-  hud_string(4, y, line, ARGB4444_WHITE);
-  y += HUD_LINE;
+      p = line;
+      memcpy(p, "FPS ", 4); p += 4;
+      p += u32_to_str(p, times->fps);
+      *p = '\0';
+      hud_string(4, y, line, ARGB4444_WHITE);
+      y += HUD_LINE;
 
-  hud_ms_line(y, "ISP", times->isp);     y += HUD_LINE;
-  hud_ms_line(y, "WAIT", times->wait);   y += HUD_LINE;
-  hud_ms_line(y, "FPREP", times->fprep); y += HUD_LINE;
-  hud_ms_line(y, "FNPU", times->fnpu);   y += HUD_LINE;
-  hud_ms_line(y, "FPP", times->fpp);     y += HUD_LINE;
-  hud_ms_line(y, "PPREP", times->pprep); y += HUD_LINE;
-  hud_ms_line(y, "PNPU", times->pnpu);   y += HUD_LINE;
-  hud_ms_line(y, "PPP", times->ppp);     y += HUD_LINE;
-  hud_ms_line(y, "DRAW", times->draw);   y += HUD_LINE;
-  hud_ms_line(y, "LOOP", times->loop);
+      hud_ms_line(y, "DRAW", times->draw); y += HUD_LINE;
+      hud_ms_line(y, "LOOP", times->loop);
+    }
+  }
   hud_blit();
 
   /* Drawing complete — schedule a VBLANK swap so LTDC picks up the finished
