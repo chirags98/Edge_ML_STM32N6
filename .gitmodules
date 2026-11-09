@@ -1,3 +1,24 @@
 [submodule "reference_repos/STM32CubeN6"]
 	path = reference_repos/STM32CubeN6
 	url = https://github.com/STMicroelectronics/STM32CubeN6.git
+[submodule "projects/STM32CubeN6/Drivers/STM32N6xx_HAL_Driver"]
+	path = projects/STM32CubeN6/Drivers/STM32N6xx_HAL_Driver
+	url = https://github.com/STMicroelectronics/stm32n6xx-hal-driver.git
+[submodule "projects/STM32CubeN6/Drivers/CMSIS/Device/ST/STM32N6xx"]
+	path = projects/STM32CubeN6/Drivers/CMSIS/Device/ST/STM32N6xx
+	url = https://github.com/STMicroelectronics/cmsis-device-n6.git
+[submodule "projects/STM32CubeN6/Drivers/BSP/STM32N6570-DK"]
+	path = projects/STM32CubeN6/Drivers/BSP/STM32N6570-DK
+	url = https://github.com/STMicroelectronics/stm32n6570-dk-bsp.git
+[submodule "projects/STM32CubeN6/Drivers/BSP/Components/Common"]
+	path = projects/STM32CubeN6/Drivers/BSP/Components/Common
+	url = https://github.com/STMicroelectronics/stm32-bsp-common.git
+[submodule "projects/STM32CubeN6/Drivers/BSP/Components/aps256xx"]
+	path = projects/STM32CubeN6/Drivers/BSP/Components/aps256xx
+	url = https://github.com/STMicroelectronics/stm32-aps256.git
+[submodule "projects/STM32CubeN6/Drivers/BSP/Components/imx335"]
+	path = projects/STM32CubeN6/Drivers/BSP/Components/imx335
+	url = https://github.com/STMicroelectronics/stm32-imx335.git
+[submodule "projects/STM32CubeN6/Drivers/BSP/Components/rk050hr18"]
+	path = projects/STM32CubeN6/Drivers/BSP/Components/rk050hr18
+	url = https://github.com/STMicroelectronics/stm32-rk050hr18.git
