@@ -47,6 +47,11 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>Model/hand.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Model/Hand/hand.c</locationURI>
+		</link>
+		<link>
 			<name>Model/network.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/Model/network.c</locationURI>
@@ -55,6 +60,11 @@
 			<name>Model/pose.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/Model/Pose/pose.c</locationURI>
+		</link>
+		<link>
+			<name>Model/stai_hand.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Model/Hand/stai_hand.c</locationURI>
 		</link>
 		<link>
 			<name>Model/stai_network.c</name>

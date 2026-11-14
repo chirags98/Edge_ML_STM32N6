@@ -71,6 +71,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../../../Middlewares\stedgeai-lib\Npu\Devices\STM32N6xx&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../Model&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../Model\Pose&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../Model\Hand&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../../../Middlewares\ai-postprocessing-wrapper&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../../../Middlewares\stm32-vision-models-postprocessing\lib_vision_models_pp\Inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../../../Middlewares\stm32-vision-models-postprocessing\lib_vision_models_pp\Src&quot;"/>

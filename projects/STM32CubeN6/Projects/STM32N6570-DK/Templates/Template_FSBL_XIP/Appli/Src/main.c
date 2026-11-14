@@ -75,6 +75,9 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define POSE_INPUT_HEIGHT  192
 #define POSE_INPUT_SIZE    (POSE_INPUT_WIDTH * POSE_INPUT_HEIGHT * 3)  /* 110592 */
 
+#define HAND_INPUT_SIZE   (192 * 192 * 3)   /* 110592 */
+#define HAND_OUTPUT_SIZE  3
+
 #define LCD_FG_WIDTH     800
 #define LCD_FG_HEIGHT    480
 #define LCD_FG_ADDRESS   0x90200000UL  /* overlay back/front buffer A */
@@ -93,7 +96,7 @@ Rectangle_TypeDef lcd_bg_area = { .X0 = 160, .Y0 = 0, .XSize = 480, .YSize = 480
 #define HUD_X 8
 #define HUD_Y 8
 #define HUD_W 128
-#define HUD_H 56
+#define HUD_H 88
 #define HUD_LINE 16
 #define HUD_REFRESH_MS 250
 /* 3 faces × (4 box edges + 6 keypoints) + HUD, plus slack */
@@ -147,6 +150,7 @@ typedef struct {
   uint32_t ppp;
   uint32_t draw;
   uint32_t loop;
+  uint32_t hand;
 } FrameTimes_t;
 
 static FrameTimes_t hud_times;
@@ -183,6 +187,11 @@ static BoneSeg_t bone_prev[2][14];
 STAI_NETWORK_CONTEXT_DECLARE(pose_context, STAI_NETWORK_CONTEXT_SIZE);
 static stai_ptr pose_in;
 static stai_ptr pose_out;
+
+STAI_NETWORK_CONTEXT_DECLARE(hand_context, STAI_NETWORK_CONTEXT_SIZE);
+static stai_ptr hand_in;
+static stai_ptr hand_out;
+
 static const uint8_t *pose_frame;
 static spe_movenet_pp_static_param_t pose_pp_params;
 static spe_pp_outBuffer_t pose_kpts[13];
@@ -200,6 +209,14 @@ static const uint16_t pose_bone_color[14] = {
   ARGB4444_GREEN, ARGB4444_GREEN, 0xF00F,
   0xF00F, 0xF00F, 0xF00F, 0xF00F
 };
+
+static int8_t   hand_scores[HAND_OUTPUT_SIZE];  /* raw int8 output, kept for debugging */
+static uint32_t hand_class;                     /* 0, 1 or 2 */
+static uint32_t hand_pct;                       /* confidence of hand_class, 0–100 */
+/* Text shown on the HUD for each output index. Order must match the model's
+   class order (Edge Impulse label order). Uppercase only: the HUD font has no
+   lowercase glyphs. */
+static const char *const hand_labels[HAND_OUTPUT_SIZE] = { "ONE", "FIVE", "NONE" };
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -252,6 +269,11 @@ stai_return_code stai_pose_init(stai_network *network);
 stai_return_code stai_pose_run(stai_network *network, const stai_run_mode mode);
 stai_return_code stai_pose_get_inputs(stai_network *network, stai_ptr *inputs, stai_size *n_inputs);
 stai_return_code stai_pose_get_outputs(stai_network *network, stai_ptr *outputs, stai_size *n_outputs);
+
+stai_return_code stai_hand_init(stai_network *network);
+stai_return_code stai_hand_run(stai_network *network, const stai_run_mode mode);
+stai_return_code stai_hand_get_inputs(stai_network *network, stai_ptr *inputs, stai_size *n_inputs);
+stai_return_code stai_hand_get_outputs(stai_network *network, stai_ptr *outputs, stai_size *n_outputs);
 
 static void overlay_DrawLine(int x0, int y0, int x1, int y1, uint16_t c);
 /* USER CODE END PFP */
@@ -408,6 +430,14 @@ int main(void)
   stai_pose_get_inputs(pose_context, &pose_in, &pose_n);
   pose_n = 1;
   stai_pose_get_outputs(pose_context, &pose_out, &pose_n);
+
+  if (stai_hand_init(hand_context) != STAI_SUCCESS)
+  Error_Handler();
+
+stai_size hand_n = 1;
+stai_hand_get_inputs(hand_context, &hand_in, &hand_n);
+hand_n = 1;
+stai_hand_get_outputs(hand_context, &hand_out, &hand_n);
 
   pose_pp_params.raw_scale = 0.00390625f;
   pose_pp_params.raw_zero_point = -128;
@@ -628,6 +658,27 @@ int main(void)
 	}
 	cur.ppp = cycles_to_tenth_ms(cycle_now() - t0);
 
+	memcpy(hand_in, pose_frame, HAND_INPUT_SIZE);
+	SCB_CleanInvalidateDCache_by_Addr(hand_in, HAND_INPUT_SIZE);
+
+	/* Time the NPU inference only (shown as HAND on the HUD) */
+	t0 = cycle_now();
+	if (stai_hand_run(hand_context, STAI_MODE_SYNC) != STAI_SUCCESS)
+	  BSP_LED_Toggle(LED_RED);
+	cur.hand = cycles_to_tenth_ms(cycle_now() - t0);
+
+	SCB_InvalidateDCache_by_Addr(hand_out, HAND_OUTPUT_SIZE);
+	{
+	  const int8_t *q = (const int8_t *)hand_out;
+	  uint32_t best = 0;
+	  for (uint32_t i = 0; i < HAND_OUTPUT_SIZE; i++) {
+	    hand_scores[i] = q[i];
+	    if (q[i] > q[best]) best = i;
+	  }
+	  hand_class = best;
+	  hand_pct   = ((uint32_t)(q[best] + 128) * 100u) / 256u;
+	}
+    
 	{
 	  uint32_t now = HAL_GetTick();
 	  uint32_t dt  = now - cam_last_tick;
@@ -1382,7 +1433,20 @@ static void Display_NetworkOutput(fd_pp_out_t *p_postprocess,
       y += HUD_LINE;
 
       hud_ms_line(y, "DRAW", times->draw); y += HUD_LINE;
-      hud_ms_line(y, "LOOP", times->loop);
+      hud_ms_line(y, "LOOP", times->loop); y += HUD_LINE;
+      hud_ms_line(y, "HAND", times->hand); y += HUD_LINE;
+
+      {
+        const char *s = hand_labels[hand_class];
+        p = line;
+        while (*s) *p++ = *s++;
+        *p++ = ' ';
+        p += u32_to_str(p, hand_pct);
+        *p++ = '%';
+        *p = '\0';
+        hud_string(4, y, line,
+                   (hand_pct >= 70u) ? ARGB4444_GREEN : ARGB4444_YELLOW);
+      }
     }
     hud_blit(HUD_W, HUD_H);
   }
@@ -1472,6 +1536,12 @@ static const uint8_t font5x7[64][5] = {
   ['T' - 32] = {0x01, 0x01, 0x7F, 0x01, 0x01},
   ['U' - 32] = {0x3F, 0x40, 0x40, 0x40, 0x3F},
   ['W' - 32] = {0x3F, 0x40, 0x38, 0x40, 0x3F},
+  ['H' - 32] = {0x7F, 0x08, 0x08, 0x08, 0x7F},
+  ['V' - 32] = {0x1F, 0x20, 0x40, 0x20, 0x1F},
+  ['%' - 32] = {0x23, 0x13, 0x08, 0x64, 0x62},
+  ['H' - 32] = {0x7F, 0x08, 0x08, 0x08, 0x7F},
+  ['V' - 32] = {0x1F, 0x20, 0x40, 0x20, 0x1F},
+  ['%' - 32] = {0x23, 0x13, 0x08, 0x64, 0x62},
 };
 
 static void overlay_FillRect(int x, int y, int w, int h, uint16_t c)
