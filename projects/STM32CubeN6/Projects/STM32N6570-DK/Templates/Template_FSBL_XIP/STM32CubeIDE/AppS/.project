@@ -52,6 +52,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/Model/Hand/hand.c</locationURI>
 		</link>
 		<link>
+			<name>Model/hand_box.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Model/Hand_Bound_Box/hand_box.c</locationURI>
+		</link>
+		<link>
 			<name>Model/network.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/Model/network.c</locationURI>
@@ -65,6 +70,11 @@
 			<name>Model/stai_hand.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/Model/Hand/stai_hand.c</locationURI>
+		</link>
+		<link>
+			<name>Model/stai_hand_box.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Model/Hand_Bound_Box/stai_hand_box.c</locationURI>
 		</link>
 		<link>
 			<name>Model/stai_network.c</name>
