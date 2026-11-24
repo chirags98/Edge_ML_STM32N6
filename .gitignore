@@ -52,13 +52,15 @@ release
 *.pdb
 
 # Prebuilt libraries and model weights the project needs to build and run
+
 !projects/STM32CubeN6/Middlewares/stedgeai-lib/Npu/Lib/GCC/ARMCortexM55/NetworkRuntime1200_CM55_GCC.a
 !projects/STM32CubeN6/Middlewares/ST/STM32_ISP_Library/evision/Lib/*_gcc.a
+
 !projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Face/network_data.hex
 
-!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Pose/STM32N6570-DK/pose_network_data.hex
-!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Pose/STM32N6570-DK/pose_atonbuf.xSPI2.raw
+!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Pose/pose_network_data.hex
+!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Pose/pose_atonbuf.xSPI2.raw
 
-!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Hand/hand_data.hex
-!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Hand/hand_data.xSPI2.bin
-!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Hand/hand_atonbuf.xSPI2.raw
+!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Hand_Numbers/hand_data.hex
+!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Hand_Numbers/hand_data.xSPI2.bin
+!projects/STM32CubeN6/Projects/STM32N6570-DK/Templates/Template_FSBL_XIP/Model_Network/Hand_Numbers/hand_atonbuf.xSPI2.raw
